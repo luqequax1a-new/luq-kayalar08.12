@@ -1,0 +1,10 @@
+{
+    "name": "Unit",
+    "alias": "unit",
+    "description": "Product sale units management.",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Unit\\Providers\\UnitServiceProvider"
+    ]
+}
