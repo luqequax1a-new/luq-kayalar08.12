@@ -1,4 +1,5 @@
 <div class="product-gallery position-relative align-self-start"> 
+    @php($mediaCount = $product->media->count())
     <div class="product-gallery-preview-wrap position-relative overflow-hidden">
         <div class="product-gallery-preview swiper">
             <div class="swiper-wrapper">
@@ -30,15 +31,16 @@
                     </div>
                 @endif
             </div>
-
-            <div class="swiper-button-next"></div>
-            <div class="swiper-button-prev"></div>
+            @if ($mediaCount > 1)
+                <div class="swiper-button-next"></div>
+                <div class="swiper-button-prev"></div>
+                <div class="swiper-pagination product-gallery-pagination"></div>
+            @endif
         </div>
     </div>
-
-    <div class="product-gallery-thumbnail swiper"> 
-        <div class="swiper-wrapper">
-            @if ($product->media->isNotEmpty())
+    @if ($mediaCount > 1)
+        <div class="product-gallery-thumbnail swiper"> 
+            <div class="swiper-wrapper">
                 @foreach ($product->media as $media)
                     <div class="swiper-slide">
                         <div class="gallery-thumbnail-slide">
@@ -48,18 +50,10 @@
                         </div>
                     </div>
                 @endforeach
-            @else
-                <div class="swiper-slide">
-                    <div class="gallery-thumbnail-slide">
-                        <div class="gallery-thumbnail-item">
-                            <img src="{{ asset('build/assets/image-placeholder.png') }}" alt="{{ $product->name }}" class="image-placeholder">
-                        </div>
-                    </div>
-                </div>
-            @endif
-        </div>
+            </div>
 
-        <div x-cloak class="swiper-button-next"></div>
-        <div x-cloak class="swiper-button-prev"></div>
-    </div>
+            <div x-cloak class="swiper-button-next"></div>
+            <div x-cloak class="swiper-button-prev"></div>
+        </div>
+    @endif
 </div>

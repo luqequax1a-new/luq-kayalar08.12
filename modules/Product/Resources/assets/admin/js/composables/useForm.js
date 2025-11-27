@@ -36,6 +36,8 @@ function initialFormData() {
         qty: null,
         in_stock: 1,
         slug: null,
+        original_slug: null,
+        redirect_on_slug_change: true,
         meta: {},
         short_description: null,
         new_from: null,

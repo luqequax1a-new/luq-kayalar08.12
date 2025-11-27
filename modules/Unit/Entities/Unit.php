@@ -17,6 +17,7 @@ class Unit extends Model
         'info_bottom',
         'step',
         'min',
+        'default_qty',
         'is_default',
         'is_decimal_stock',
         'short_suffix',
@@ -25,6 +26,7 @@ class Unit extends Model
     protected $casts = [
         'step' => 'decimal:2',
         'min' => 'decimal:2',
+        'default_qty' => 'decimal:2',
         'is_default' => 'boolean',
         'is_decimal_stock' => 'boolean',
     ];
@@ -49,7 +51,11 @@ class Unit extends Model
         }
 
         if ($step <= 0) {
-            return $qty;
+            if ($this->isDecimalStock()) {
+                $step = 0.5;
+            } else {
+                return $qty;
+            }
         }
 
         $steps = round(($qty - $min) / $step);
@@ -58,27 +64,15 @@ class Unit extends Model
         return $this->isDecimalStock() ? round($normalized, 2) : $normalized;
     }
 
-    public function isValidQuantity(float $qty, float $epsilon = 1e-8): bool
+    public function isValidQuantity(float $qty): bool
     {
         $min = (float) $this->min;
-        $step = (float) $this->step;
 
         if ($qty < $min) {
             return false;
         }
 
-        if ($this->isDecimalStock()) {
-            return true;
-        }
-
-        if ($step <= 0) {
-            return true;
-        }
-
-        $steps = round(($qty - $min) / $step);
-        $normalized = $min + $steps * $step;
-
-        return abs($qty - $normalized) <= $epsilon;
+        return true;
     }
 
     public function getDisplaySuffix(): string
@@ -104,11 +98,7 @@ class Unit extends Model
             }
         });
 
-        static::saved(function (Unit $unit) {
-            if ($unit->is_default) {
-                static::where('id', '!=', $unit->id)->update(['is_default' => false]);
-            }
-        });
+        // default unit feature disabled: keep column for compatibility but no enforcement
     }
 }
 

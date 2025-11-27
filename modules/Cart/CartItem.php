@@ -82,6 +82,10 @@ class CartItem implements JsonSerializable
     {
         $item = $this->getItem();
 
+        if (!$item) {
+            return $this;
+        }
+
         $this->item->fill([
             'manage_stock' => $item->manage_stock,
             'in_stock' => $item->in_stock,

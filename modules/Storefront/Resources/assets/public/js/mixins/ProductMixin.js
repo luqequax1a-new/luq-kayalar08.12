@@ -18,8 +18,21 @@ export default function (product) {
             return url;
         },
 
+        get unitSuffix() {
+            return this.item.unit_suffix || this.product.unit_suffix || null;
+        },
+
         get productPrice() {
-            return this.item.formatted_price;
+            if (this.hasSpecialPrice) {
+                const sp = formatCurrency(this.specialPrice);
+                const rp = formatCurrency(this.regularPrice);
+                const suf = this.unitSuffix ? ` /${this.unitSuffix}` : "";
+                return `<span class='special-price'>${sp}${suf}</span> <span class='previous-price'>${rp}${suf}</span>`;
+            }
+
+            const rp = formatCurrency(this.regularPrice);
+            const suf = this.unitSuffix ? ` /${this.unitSuffix}` : "";
+            return `${rp}${suf}`;
         },
 
         get regularPrice() {
@@ -130,3 +143,4 @@ export default function (product) {
         },
     };
 }
+import { formatCurrency } from "../functions";

@@ -11,4 +11,10 @@ Alpine.data("ProductCard", (product) => ({
     get inCompareList() {
         return this.$store.compare.inCompareList(this.product.id);
     },
+
+    get hasVisibleRating() {
+        const ratingPercent = this.product.rating_percent ?? 0;
+        const reviews = Array.isArray(this.product.reviews) ? this.product.reviews.length : 0;
+        return reviews > 0 || ratingPercent > 0;
+    },
 }));

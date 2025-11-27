@@ -71,7 +71,7 @@ class StoreOrderRequest extends Request
             'billing.last_name' => 'required',
             'billing.address_1' => 'required',
             'billing.city' => 'required',
-            'billing.zip' => 'required',
+            'billing.zip' => ['nullable'],
             'billing.country' => ['required', Rule::in(Country::supportedCodes())],
             'billing.state' => 'required',
         ];
@@ -85,7 +85,7 @@ class StoreOrderRequest extends Request
             'shipping.last_name' => 'required_if:ship_to_a_different_address,1',
             'shipping.address_1' => 'required_if:ship_to_a_different_address,1',
             'shipping.city' => 'required_if:ship_to_a_different_address,1',
-            'shipping.zip' => 'required_if:ship_to_a_different_address,1',
+            'shipping.zip' => ['nullable'],
             'shipping.country' => ['required_if:ship_to_a_different_address,1', Rule::in(Country::supportedCodes())],
             'shipping.state' => 'required_if:ship_to_a_different_address,1',
         ];

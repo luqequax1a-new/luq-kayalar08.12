@@ -9,7 +9,7 @@ Alpine.data("CartItem", (cartItem) => ({
     },
 
     get stepQty() {
-        return this.product.unit_step || 1;
+        return this.product.unit_step || 0.5;
     },
 
     get productName() {
@@ -107,12 +107,13 @@ Alpine.data("CartItem", (cartItem) => ({
 
         if (v < min) v = min;
 
-        if (this.product.unit_decimal) {
-            return v;
-        }
-
         const steps = Math.round((v - min) / step);
         v = min + steps * step;
+
+        if (this.product.unit_decimal) {
+            return Number(v.toFixed(2));
+        }
+
         return Math.round(v);
     },
 

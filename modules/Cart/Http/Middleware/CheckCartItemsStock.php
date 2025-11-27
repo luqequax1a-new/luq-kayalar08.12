@@ -101,12 +101,12 @@ class CheckCartItemsStock
 
     private function hasStock(CartItem $cartItem): bool
     {
-        if (!$cartItem->item->manage_stock) {
-            return true;
-        }
+        $limitQty = $cartItem->item->manage_stock
+            ? (float) $cartItem->item->qty
+            : (((float) $cartItem->item->qty) > 0 ? (float) $cartItem->item->qty : INF);
 
-        $addedCartQty = Cart::addedQty($cartItem);
+        $addedCartQty = (float) Cart::addedQty($cartItem);
 
-        return $cartItem->item->qty >= $addedCartQty;
+        return $limitQty >= $addedCartQty;
     }
 }

@@ -130,6 +130,10 @@ class AdminAccount
             'admin.menus.create' => true,
             'admin.menus.edit' => true,
             'admin.menus.destroy' => true,
+            # redirects
+            'admin.redirects.index' => true,
+            'admin.redirects.edit' => true,
+            'admin.redirects.destroy' => true,
             'admin.menu_items.index' => true,
             'admin.menu_items.create' => true,
             'admin.menu_items.edit' => true,

@@ -26,7 +26,7 @@ class SaveAddressRequest extends Request
             'last_name' => ['required'],
             'address_1' => ['required'],
             'city' => ['required'],
-            'zip' => ['required'],
+            'zip' => ['nullable','required_unless:country,TR'],
             'country' => ['required'],
             'state' => ['required'],
         ];

@@ -3,6 +3,8 @@
 namespace Modules\Product\Http\Requests;
 
 use Illuminate\Validation\Rule;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Support\Facades\Log;
 use Modules\Option\Entities\Option;
 use Modules\Product\Entities\Product;
 use Modules\Core\Http\Requests\Request;
@@ -35,6 +37,80 @@ class SaveProductRequest extends Request
         );
     }
 
+    public function prepareForValidation()
+    {
+        Log::debug('SaveProductRequest: prepareForValidation start', ['route' => optional($this->route())->getName()]);
+        $data = $this->all();
+
+        $normalize = function ($v) {
+            if (is_string($v)) {
+                $v = str_replace(',', '.', $v);
+            }
+            return $v;
+        };
+
+        foreach (['price', 'special_price', 'qty'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = $normalize($data[$field]);
+            }
+        }
+
+        if (isset($data['variants']) && is_array($data['variants'])) {
+            foreach ($data['variants'] as $key => $variant) {
+                foreach (['price', 'special_price', 'qty'] as $field) {
+                    if (isset($variant[$field])) {
+                        $data['variants'][$key][$field] = $normalize($variant[$field]);
+                    }
+                }
+            }
+            $data['has_active_variants'] = collect($data['variants'])
+                ->filter(function ($v) {
+                    return isset($v['is_active']) && (string)$v['is_active'] !== '0' && $v['is_active'] !== false;
+                })
+                ->isNotEmpty() ? 1 : 0;
+
+            // Variants aktifken, ürün qty alanı boş ise request'ten tamamen kaldır
+            // Böylece model update sırasında qty null'a set edilmez ve mevcut değer korunur.
+            if (($data['has_active_variants'] ?? 0) === 1) {
+                if (!array_key_exists('qty', $data) || $data['qty'] === null || $data['qty'] === '') {
+                    unset($data['qty']);
+                }
+            }
+        }
+
+        if (isset($data['options']) && is_array($data['options'])) {
+            foreach ($data['options'] as $okey => $option) {
+                if (isset($option['values']) && is_array($option['values'])) {
+                    foreach ($option['values'] as $vkey => $value) {
+                        if (isset($value['price'])) {
+                            $data['options'][$okey]['values'][$vkey]['price'] = $normalize($value['price']);
+                        }
+                    }
+                }
+            }
+        }
+
+        $this->merge($data);
+        Log::debug('SaveProductRequest: prepareForValidation merged', [
+            'product' => [
+                'price' => $data['price'] ?? null,
+                'special_price' => $data['special_price'] ?? null,
+                'qty' => $data['qty'] ?? null,
+            ],
+            'variants_count' => isset($data['variants']) && is_array($data['variants']) ? count($data['variants']) : 0,
+            'has_active_variants' => $data['has_active_variants'] ?? 0,
+        ]);
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        Log::error('SaveProductRequest: validation failed', [
+            'errors' => $validator->errors()->toArray(),
+            'route' => optional($this->route())->getName(),
+        ]);
+        parent::failedValidation($validator);
+    }
+
 
     public function getProductRules(): array
     {
@@ -46,13 +122,13 @@ class SaveProductRequest extends Request
                 'brand_id' => ['nullable', Rule::exists('brands', 'id')],
                 'tax_class_id' => ['nullable', Rule::exists('tax_classes', 'id')],
                 'sale_unit_id' => ['nullable', Rule::exists('units', 'id')],
-                'price' => 'required_without:variants.*.is_active|nullable|numeric|min:0|max:99999999999999',
+                'price' => 'required_unless:has_active_variants,1|nullable|numeric|min:0|max:99999999999999',
                 'special_price' => 'nullable|numeric|min:0|max:99999999999999',
                 'special_price_type' => ['nullable', Rule::in(['fixed', 'percent'])],
                 'special_price_start' => 'nullable|date|before:special_price_end',
                 'special_price_end' => 'nullable|date|after:special_price_start',
                 'manage_stock' => 'required|boolean',
-                'qty' => 'required_if:manage_stock,1|nullable|numeric',
+                'qty' => 'required_unless:has_active_variants,1|nullable|numeric|min:0',
                 'in_stock' => 'required|boolean',
                 'new_from' => 'nullable|date',
                 'new_to' => 'nullable|date',
@@ -71,7 +147,7 @@ class SaveProductRequest extends Request
         if (!$this->request->has('variations')) {
             return [
                 'manage_stock' => 'required|boolean',
-                'qty' => ['required_if:manage_stock,1','nullable','numeric','regex:/^\d+(\.\d{1,2})?$/'],
+                'qty' => ['required_if:manage_stock,1','nullable','numeric','regex:/^\d+(?:[\.,]\d{1,2})?$/'],
                 'in_stock' => 'required|boolean',
             ];
         }
@@ -112,7 +188,7 @@ class SaveProductRequest extends Request
             'variants.*.special_price_start' => 'nullable|date|before:variants.*.special_price_end',
             'variants.*.special_price_end' => 'nullable|date|after:variants.*.special_price_start',
             'variants.*.manage_stock' => 'required_if:variants.*.is_active,1|boolean',
-            'variants.*.qty' => ['required_if:variants.*.is_active,1','required_if:variants.*.manage_stock,1','nullable','numeric','regex:/^\d+(\.\d{1,2})?$/'],
+            'variants.*.qty' => ['required_if:variants.*.is_active,1','required_if:variants.*.manage_stock,1','nullable','numeric','regex:/^\d+(?:[\.,]\d{1,2})?$/'],
             'variants.*.in_stock' => 'required_if:variants.*.is_active,1|boolean',
             'variants.*.is_active' => 'required|boolean',
         ];

@@ -86,7 +86,7 @@ class OrderService
             'address_2' => $data['address_2'] ?? null,
             'city' => $data['city'],
             'state' => $data['state'],
-            'zip' => $data['zip'],
+            'zip' => $data['zip'] ?? '',
             'country' => $data['country'],
         ];
     }
@@ -132,7 +132,7 @@ class OrderService
             'billing_address_2' => $request->billing['address_2'] ?? null,
             'billing_city' => $request->billing['city'],
             'billing_state' => $request->billing['state'],
-            'billing_zip' => $request->billing['zip'],
+            'billing_zip' => $request->billing['zip'] ?? '',
             'billing_country' => $request->billing['country'],
             'shipping_first_name' => $request->shipping['first_name'],
             'shipping_last_name' => $request->shipping['last_name'],
@@ -140,7 +140,7 @@ class OrderService
             'shipping_address_2' => $request->shipping['address_2'] ?? null,
             'shipping_city' => $request->shipping['city'],
             'shipping_state' => $request->shipping['state'],
-            'shipping_zip' => $request->shipping['zip'],
+            'shipping_zip' => $request->shipping['zip'] ?? '',
             'shipping_country' => $request->shipping['country'],
             'sub_total' => Cart::subTotal()->amount(),
             'shipping_method' => Cart::shippingMethod()->name(),

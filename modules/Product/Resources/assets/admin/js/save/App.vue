@@ -118,6 +118,15 @@
                 @click="submit({ submissionType: 'save_and_exit' })"
                 v-html="trans('product::products.save_and_exit')"
             ></button>
+
+            <button
+                type="button"
+                class="btn btn-default m-l-10"
+                :disabled="!form.id || formSubmissionType"
+                @click="duplicateCurrent()"
+            >
+                Copy
+            </button>
         </div>
     </form>
 </template>
@@ -183,6 +192,9 @@ const methodAction = computed(() => (form.id ? "PUT" : "POST"));
 
 if (FleetCart.data["product"]) {
     Object.assign(form, prepareFormData(FleetCart.data["product"]));
+    if (!form.original_slug && form.slug) {
+        form.original_slug = form.slug;
+    }
 }
 
 setDefaultVariantUid();
@@ -230,6 +242,7 @@ async function submit({ submissionType }) {
         destroyAllAttributeValuesSelectize();
 
         Object.assign(form, { ...data.product_resource });
+        form.original_slug = form.slug;
 
         errors.reset();
 
@@ -265,6 +278,23 @@ async function submit({ submissionType }) {
         }
     } finally {
         formSubmissionType.value = null;
+    }
+}
+
+async function duplicateCurrent() {
+    if (!form.id) return;
+    try {
+        const { data } = await axios.post(`/products/${form.id}/duplicate`);
+        if (data && data.redirect_url) {
+            window.location.href = data.redirect_url;
+            return;
+        }
+        if (data && data.new_id) {
+            window.location.href = `/admin/products/${data.new_id}/edit`;
+            return;
+        }
+    } catch (e) {
+        toaster(trans('admin::messages.something_went_wrong'), { type: 'default' });
     }
 }
 

@@ -32,13 +32,18 @@ Alpine.data(
         reviewForm: {},
         currentPage: 1,
         minQty: product.unit_min || 1,
-        stepQty: product.unit_step || 1,
-        cartItemForm: {
-            product_id: product.id,
-            qty: product.unit_min || 1,
-            variations: {},
-            options: {},
-        },
+        stepQty: product.unit_step || 0.5,
+            cartItemForm: {
+                product_id: product.id,
+                qty: Math.max(
+                    Number(product.unit_default_qty || product.unit_min || 1),
+                    Number(product.unit_min || 1)
+                ),
+                variations: {},
+                options: {},
+            },
+        qtyInput: "",
+        isEditingQty: false,
         errors: new Errors(),
 
         get productName() {
@@ -235,6 +240,40 @@ Alpine.data(
             this.initRelatedProductsSlider();
         },
 
+        beginEditQty(event) {
+            this.isEditingQty = true;
+            this.qtyInput = "";
+        },
+
+        onQtyInput(event) {
+            this.qtyInput = event.target.value;
+        },
+
+        commitEditQty() {
+            this.isEditingQty = false;
+            const raw = (this.qtyInput || "").trim();
+            if (raw === "") return;
+            const val = Number(raw.replace(",", "."));
+            if (Number.isNaN(val)) return;
+            this.setQuantityManual(val);
+        },
+
+        setQuantityManual(val) {
+            let v = Number(val);
+            if (Number.isNaN(v)) return;
+            const min = this.minQty || 1;
+            if (v < min) v = min;
+            if (this.exceedsMaxStock(v)) {
+                this.cartItemForm.qty = this.item.qty;
+                return;
+            }
+            if (this.product.unit_decimal) {
+                this.cartItemForm.qty = Number(v.toFixed(2));
+                return;
+            }
+            this.cartItemForm.qty = Math.round(v);
+        },
+
         syncWishlist() {
             this.$store.wishlist.syncWishlist(this.product.id);
         },
@@ -250,21 +289,35 @@ Alpine.data(
         },
 
         initGalleryPreviewSlider() {
-            return new Swiper(".product-gallery-preview", {
-                modules: [Manipulation, Navigation, Thumbs],
+            const mediaCount = this.getMediaCount();
+            const config = {
+                modules: [Manipulation],
                 slidesPerView: 1,
                 allowTouchMove: false,
-                navigation: {
+            };
+
+            if (mediaCount > 1) {
+                config.modules.push(Navigation, Thumbs, Pagination);
+                config.navigation = {
                     nextEl: ".swiper-button-next",
                     prevEl: ".swiper-button-prev",
-                },
-                thumbs: {
+                };
+                config.thumbs = {
                     swiper: this.initGalleryThumbnailSlider(),
-                },
-            });
+                };
+                config.pagination = {
+                    el: ".product-gallery-pagination",
+                    clickable: true,
+                };
+            }
+
+            return new Swiper(".product-gallery-preview", config);
         },
 
         initGalleryThumbnailSlider() {
+            const mediaCount = this.getMediaCount();
+            if (mediaCount <= 1) return null;
+
             return new Swiper(".product-gallery-thumbnail", {
                 modules: [Manipulation, Navigation],
                 slidesPerView: 4,
@@ -319,32 +372,31 @@ Alpine.data(
 
             // Add gallery preview and thumbnail slides
             galleryPreviewSlider.addSlide(0, galleryPreviewSlides);
-            galleryPreviewSlider.thumbs.swiper.addSlide(
-                0,
-                galleryThumbnailSlides
-            );
+            if (galleryPreviewSlider.thumbs && galleryPreviewSlider.thumbs.swiper) {
+                galleryPreviewSlider.thumbs.swiper.addSlide(0, galleryThumbnailSlides);
+            }
 
             // Set the first slide as active
             galleryPreviewSlider.slideTo(0);
-            galleryPreviewSlider.thumbs.swiper.slideTo(0);
+            if (galleryPreviewSlider.thumbs && galleryPreviewSlider.thumbs.swiper) {
+                galleryPreviewSlider.thumbs.swiper.slideTo(0);
+            }
         },
 
         addGalleryEmptySlide() {
             const filePath = `${FleetCart.baseUrl}/build/assets/image-placeholder.png`;
 
-            galleryPreviewSlider.addSlide(
-                0,
-                this.galleryPreviewEmptySlide(filePath)
-            );
-            galleryPreviewSlider.thumbs.swiper.addSlide(
-                0,
-                this.galleryThumbnailEmptySlide(filePath)
-            );
+            galleryPreviewSlider.addSlide(0, this.galleryPreviewEmptySlide(filePath));
+            if (galleryPreviewSlider.thumbs && galleryPreviewSlider.thumbs.swiper) {
+                galleryPreviewSlider.thumbs.swiper.addSlide(0, this.galleryThumbnailEmptySlide(filePath));
+            }
         },
 
         removeAllGallerySlides() {
             galleryPreviewSlider.removeAllSlides();
-            galleryPreviewSlider.thumbs.swiper.removeAllSlides();
+            if (galleryPreviewSlider.thumbs && galleryPreviewSlider.thumbs.swiper) {
+                galleryPreviewSlider.thumbs.swiper.removeAllSlides();
+            }
         },
 
         addGalleryEventListeners() {
@@ -418,6 +470,34 @@ Alpine.data(
             if (window.innerWidth > 990) {
                 event.currentTarget.nextElementSibling.click();
             }
+        },
+
+        openReviewsTab() {
+            const reviewsTabLink = document.querySelector("a[href='#reviews'][data-bs-toggle='tab']");
+            if (reviewsTabLink) {
+                reviewsTabLink.click();
+            }
+
+            const target = document.getElementById("reviews");
+            if (target) {
+                target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+
+            this.$nextTick(() => {
+                if (!this.emptyReviews) {
+                    const firstReview = document.querySelector("#reviews .user-review");
+                    if (firstReview) {
+                        firstReview.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                }
+            });
+        },
+
+        getMediaCount() {
+            if (this.hasAnyVariant) {
+                return (this.item.media?.length || 0) + (this.product.media?.length || 0);
+            }
+            return this.product.media?.length || 0;
         },
 
         galleryPreviewSlide(filePath) {
@@ -665,7 +745,10 @@ Alpine.data(
                 base_image: [],
             };
 
-            this.cartItemForm.qty = this.minQty;
+            this.cartItemForm.qty = Math.max(
+                Number(this.product.unit_default_qty || this.minQty),
+                Number(this.minQty)
+            );
         },
 
         setVariantSlug() {
@@ -681,6 +764,12 @@ Alpine.data(
             this.setVariant();
             this.setVariantSlug();
             this.updateGallerySlider();
+            const def = Math.max(
+                Number(this.product.unit_default_qty || this.minQty),
+                Number(this.minQty)
+            );
+            this.cartItemForm.qty = this.normalizeQty(def);
+            this.reduceToMaxQuantity();
         },
 
         updateSelectTypeOptionValue(optionId, event) {
@@ -823,12 +912,13 @@ Alpine.data(
 
             if (v < min) v = min;
 
-            if (this.product.unit_decimal) {
-                return v;
-            }
-
             const steps = Math.round((v - min) / step);
             v = min + steps * step;
+
+            if (this.product.unit_decimal) {
+                return Number(v.toFixed(2));
+            }
+
             return Math.round(v);
         },
 
@@ -845,6 +935,11 @@ Alpine.data(
                 .then((response) => {
                     this.$store.cart.updateCart(response.data);
                     this.$store.layout.openSidebarCart();
+                    const def = Math.max(
+                        Number(this.product.unit_default_qty || this.minQty),
+                        Number(this.minQty)
+                    );
+                    this.cartItemForm.qty = this.normalizeQty(def);
                 })
                 .catch(({ response }) => {
                     if (response.status === 422) {

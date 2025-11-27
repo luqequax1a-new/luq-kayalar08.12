@@ -37,19 +37,30 @@
                 </label>
 
                 <div class="col-sm-12">
-                    <div class="input-group">
+                    <div class="sku-input-wrap" style="position:relative;">
                         <input
                             type="text"
                             name="sku"
                             id="sku"
                             class="form-control"
                             v-model="form.sku"
+                            style="padding-right:34px;"
                         />
-                        <span class="input-group-btn">
-                            <button type="button" class="btn btn-default" @click="form.sku = generateSku()">
-                                Generate
-                            </button>
-                        </span>
+                        <button
+                            type="button"
+                            class="btn btn-default"
+                            @click="form.sku = generateSku()"
+                            :title="'SKU üret'"
+                            style="position:absolute; right:6px; top:50%; transform:translateY(-50%); width:auto; height:24px; line-height:22px; padding:0 6px; border-radius:12px; display:flex; align-items:center; justify-content:center;"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
+                                <rect x="3" y="3" width="18" height="18" rx="4" fill="#3b82f6"/>
+                                <circle cx="8" cy="8" r="2" fill="#ffffff"/>
+                                <circle cx="16" cy="8" r="2" fill="#ffffff"/>
+                                <circle cx="8" cy="16" r="2" fill="#ffffff"/>
+                                <circle cx="16" cy="16" r="2" fill="#ffffff"/>
+                            </svg>
+                        </button>
                     </div>
 
                     <span
@@ -204,12 +215,22 @@ onMounted(() => {
         const n = Number(form.qty);
         if (!Number.isNaN(n)) form.qty = n;
     }
+
+    if (
+        window.location.pathname.endsWith("products/create") &&
+        (!form.sku || String(form.sku).trim() === "")
+    ) {
+        form.sku = generateSku();
+    }
 });
 
 function generateSku() {
-    const base = (form.name || 'SKU').toString().replace(/\s+/g, '-').toUpperCase();
-    const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
-    const stamp = Date.now().toString(36).toUpperCase().slice(-4);
-    return `${base}-${rand}-${stamp}`;
+    const letters = Array.from({ length: 3 }, () =>
+        String.fromCharCode(65 + Math.floor(Math.random() * 26)),
+    ).join("");
+    const digits = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+    return `${letters}${digits}`;
 }
+
+// random svg icon for sku generator button
 </script>

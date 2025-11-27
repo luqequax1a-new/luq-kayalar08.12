@@ -35,7 +35,7 @@
     @endpush
 @endif
 
-@push('scripts')
+    @push('scripts')
     <script type="module">
         DataTable.set('#products-table .table', {
             routePrefix: 'products',
@@ -45,14 +45,14 @@
             }
         });
 
-        new DataTable('#products-table .table', {
+        const dt = new DataTable('#products-table .table', {
             columns: [
                 { data: 'checkbox', orderable: false, searchable: false, width: '3%' },
                 { data: 'id', width: '5%' },
                 { data: 'thumbnail', orderable: false, searchable: false, width: '10%' },
                 { data: 'name', name: 'translations.name', class: 'name', orderable: false, defaultContent: '' },
                 { data: 'price', searchable: false },
-                { data: 'in_stock', name: 'in_stock', searchable: false },
+                { data: 'in_stock', name: 'in_stock', searchable: false, className: 'stock-cell' },
                 { data: 'status', name: 'is_active', searchable: false, orderable: false },
                 { data: 'actions', orderable: false, searchable: false },
             ]
@@ -84,20 +84,66 @@
 
             const confirmationModal = $('#confirmation-modal');
             confirmationModal.modal('show');
+            const body = confirmationModal.find('.modal-body');
+            const form = confirmationModal.find('form');
+
+            body.find('.fc-delete-redirect').remove();
+
+            const ui = `
+                <div class="fc-delete-redirect">
+                    <div class="m-t-15">
+                        <div class="text-bold">Bu ürünü silmek istediğinize emin misiniz?</div>
+                        <div class="text-red">Bu işlem geri alınamaz. Ürün katalogdan tamamen kaldırılacaktır.</div>
+                        <div class="m-t-10">İsterseniz eski URL'yi başka bir sayfaya yönlendirebilirsiniz.</div>
+                    </div>
+                    <hr>
+                    <div class="m-t-10"><strong>Yönlendirme seçeneği</strong></div>
+                    <div class="m-t-5">
+                        <label class="block"><input type="radio" name="redirect_type" value="none" checked> Yönlendirme yapma (410)</label>
+                        <label class="block"><input type="radio" name="redirect_type" value="home"> Anasayfaya yönlendir</label>
+                        <label class="block"><input type="radio" name="redirect_type" value="product"> Başka bir ürüne yönlendir (ID)</label>
+                        <input type="number" class="form-control m-t-5" name="redirect_target_id" placeholder="Hedef ürün ID">
+                        <label class="block m-t-10"><input type="radio" name="redirect_type" value="custom"> Özel URL'ye yönlendir</label>
+                        <input type="text" class="form-control m-t-5" name="redirect_target_url" placeholder="https://...">
+                    </div>
+                    <div class="m-t-10"><strong>Status Code</strong></div>
+                    <div class="m-t-5">
+                        <label class="inline-block m-r-10"><input type="radio" name="redirect_status" value="301" checked> 301</label>
+                        <label class="inline-block m-r-10"><input type="radio" name="redirect_status" value="302"> 302</label>
+                    </div>
+                </div>`;
+
+            body.append(ui);
+
             confirmationModal
+                .modal('show')
                 .find('form')
                 .off('submit')
                 .on('submit', (ev) => {
                     ev.preventDefault();
                     confirmationModal.modal('hide');
 
+                    const redirectType = form.find('input[name="redirect_type"]:checked').val();
+                    const statusCode = form.find('input[name="redirect_status"]:checked').val();
+                    const targetId = form.find('input[name="redirect_target_id"]').val();
+                    const targetUrl = form.find('input[name="redirect_target_url"]').val();
+
                     axios
-                        .delete(`${FleetCart.baseUrl}/admin/products/${id}`)
+                        .delete(`${FleetCart.baseUrl}/admin/products/${id}`, {
+                            data: {
+                                redirect: {
+                                    type: redirectType,
+                                    status_code: statusCode,
+                                    target_id: targetId || null,
+                                    target_url: targetUrl || null,
+                                }
+                            }
+                        })
                         .then(() => {
-                            $('#products-table .table').DataTable().ajax.reload(null, false);
+                            window.location.reload();
                         })
                         .catch(() => {
-                            $('#products-table .table').DataTable().ajax.reload(null, false);
+                            window.location.reload();
                         });
                 });
         });
@@ -109,5 +155,210 @@
         $(document).on('click', '.switch label', function (e) {
             e.stopPropagation();
         });
+        // Inventory drawer
+        const drawer = document.getElementById('inventory-drawer');
+        const drawerBackdrop = document.getElementById('inventory-drawer-backdrop');
+        const drawerContent = document.getElementById('inventory-drawer-content');
+        const drawerTitle = document.getElementById('inventory-drawer-title');
+        const drawerSave = document.getElementById('inventory-drawer-save');
+        const drawerClose = document.getElementById('inventory-drawer-close');
+        let currentProductId = null;
+        let currentRowEl = null;
+        function mediaUrl(obj) {
+            if (!obj) return '';
+            const p = obj.path || obj;
+            if (!p) return '';
+            if (/^https?:\/\//.test(p)) return p;
+            if (p.startsWith('/')) return FleetCart.baseUrl + p;
+            if (p.startsWith('storage/')) return FleetCart.baseUrl + '/' + p;
+            return FleetCart.baseUrl + '/storage/' + p;
+        }
+        function buildItems(product) {
+            const unitSuffix = product.sale_unit_id ? (product.unit_suffix || '') : '';
+            const items = [];
+            if (product.variants && product.variants.length > 0) {
+                product.variants.forEach(v => {
+                    const img = (v.media && v.media[0]) ? mediaUrl(v.media[0]) : ((product.media && product.media[0]) ? mediaUrl(product.media[0]) : '');
+                    items.push(`
+                        <div class="inv-item">
+                            <div class="inv-media"><img src="${img}" alt="" /></div>
+                            <div class="inv-name">${_.escape(v.name || '')}</div>
+                            <div class="inv-input-wrap">
+                                <input type="number" step="0.5" min="0" class="inv-input variant-qty-input" data-id="${v.id}" value="${Number(v.qty || 0)}" ${unitSuffix ? `data-suffix="${unitSuffix}"` : ''} />
+                            </div>
+                        </div>
+                    `);
+                });
+            } else {
+                const img = (product.media && product.media[0]) ? mediaUrl(product.media[0]) : '';
+                items.push(`
+                    <div class="inv-item inv-single">
+                        <div class="inv-top">
+                            <div class="inv-media"><img src="${img}" alt="" /></div>
+                            <div class="inv-name">${_.escape(product.name || '')}</div>
+                        </div>
+                        <div class="inv-bottom">
+                            <div class="inv-input-wrap">
+                                <input type="number" step="0.5" min="0" class="inv-input product-qty-input" value="${Number(product.qty || 0)}" ${unitSuffix ? `data-suffix="${unitSuffix}"` : ''} />
+                            </div>
+                            <button type="button" class="btn btn-primary inv-inline-save">{{ trans('admin::admin.buttons.save') }}</button>
+                        </div>
+                    </div>
+                `);
+            }
+            return items.join('');
+        }
+
+        function openDrawer() {
+            drawer.classList.add('open');
+            drawerBackdrop.classList.add('open');
+        }
+
+        function closeDrawer() {
+            drawer.classList.remove('open');
+            drawerBackdrop.classList.remove('open');
+            currentProductId = null;
+            drawerContent.innerHTML = '';
+            drawerTitle.textContent = '';
+        }
+
+        drawerClose.addEventListener('click', closeDrawer);
+        drawerBackdrop.addEventListener('click', closeDrawer);
+
+        $(document).on('click', '#products-table .table tbody tr td.stock-cell', function () {
+            const dtApi = $('#products-table .table').DataTable();
+            currentRowEl = $(this).closest('tr');
+            const row = dtApi.row(currentRowEl).data() || {};
+            const anchorId = $(this).find('.inventory-click').data('id');
+            const targetId = anchorId || row.id;
+            if (!targetId) return;
+            axios.get(`${FleetCart.baseUrl}/admin/products/${targetId}/inventory`).then(({ data }) => {
+                const product = data.product;
+                currentProductId = product.id;
+                drawerTitle.textContent = product.name;
+                drawerContent.innerHTML = buildItems(product);
+                drawerSave.style.display = (product.variants && product.variants.length > 0) ? '' : 'none';
+                openDrawer();
+            });
+        });
+
+        $(document).on('click', '.inventory-click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = $(this).data('id');
+            if (!id) return;
+            currentRowEl = $(this).closest('tr');
+            axios.get(`${FleetCart.baseUrl}/admin/products/${id}/inventory`).then(({ data }) => {
+                const product = data.product;
+                currentProductId = product.id;
+                drawerTitle.textContent = product.name;
+                drawerContent.innerHTML = buildItems(product);
+                drawerSave.style.display = (product.variants && product.variants.length > 0) ? '' : 'none';
+                openDrawer();
+            });
+        });
+
+        drawerSave.addEventListener('click', function () {
+            if (!currentProductId) return;
+            const payload = {};
+            const variantInputs = drawerContent.querySelectorAll('.variant-qty-input');
+            if (variantInputs.length > 0) {
+                payload.variants = {};
+                variantInputs.forEach(inp => {
+                    const id = inp.getAttribute('data-id');
+                    const v = parseFloat((inp.value || '0').replace(',', '.')) || 0;
+                    payload.variants[id] = { qty: v };
+                });
+            } else {
+                const inp = drawerContent.querySelector('.product-qty-input');
+                const v = parseFloat((inp.value || '0').replace(',', '.')) || 0;
+                payload.qty = v;
+            }
+
+            axios.patch(`${FleetCart.baseUrl}/admin/products/${currentProductId}/inventory`, payload).then(() => {
+                const cell = $(currentRowEl).find('td.stock-cell');
+                const suffixAttr = drawerContent.querySelector('.inv-input')?.getAttribute('data-suffix') || '';
+                if (variantInputs.length > 0) {
+                    let total = 0;
+                    variantInputs.forEach(inp => { total += parseFloat((inp.value || '0').replace(',', '.')) || 0; });
+                    const formatted = (function(n){ const s = (Math.round(n * 100) / 100).toFixed(2).replace(/\.00$/, ''); return s.endsWith('.0') ? s.slice(0, -2) : s.replace(/\.0$/, ''); })(total);
+                    const display = suffixAttr ? (formatted + ' ' + suffixAttr) : formatted;
+                    cell.find('.stock-total').text(display);
+                } else {
+                    const inp = drawerContent.querySelector('.product-qty-input');
+                    const n = parseFloat((inp.value || '0').replace(',', '.')) || 0;
+                    const formatted = (function(n){ const s = (Math.round(n * 100) / 100).toFixed(2).replace(/\.00$/, ''); return s.endsWith('.0') ? s.slice(0, -2) : s.replace(/\.0$/, ''); })(n);
+                    const display = suffixAttr ? (formatted + ' ' + suffixAttr) : formatted;
+                    const anchor = cell.find('.inventory-click');
+                    if (anchor.length) anchor.text(display); else cell.text(display);
+                }
+                closeDrawer();
+            });
+        });
+
+        $(document).on('click', '.inv-inline-save', function () {
+            if (!currentProductId) return;
+            const payload = {};
+            const inp = drawerContent.querySelector('.product-qty-input');
+            const v = parseFloat((inp?.value || '0').replace(',', '.')) || 0;
+            payload.qty = v;
+
+            axios.patch(`${FleetCart.baseUrl}/admin/products/${currentProductId}/inventory`, payload).then(() => {
+                const cell = $(currentRowEl).find('td.stock-cell');
+                const suffixAttr = inp?.getAttribute('data-suffix') || '';
+                const formatted = (function(n){ const s = (Math.round(n * 100) / 100).toFixed(2).replace(/\.00$/, ''); return s.endsWith('.0') ? s.slice(0, -2) : s.replace(/\.0$/, ''); })(v);
+                const display = suffixAttr ? (formatted + ' ' + suffixAttr) : formatted;
+                const anchor = cell.find('.inventory-click');
+                if (anchor.length) anchor.text(display); else cell.text(display);
+                closeDrawer();
+            });
+        });
     </script>
-@endpush
+    @endpush
+
+    @push('styles')
+    <style>
+        #inventory-drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 1040; }
+        #inventory-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+        #inventory-drawer { position: fixed; top: 0; right: -480px; width: 480px; height: 100%; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,0.15); z-index: 1050; transition: right .25s; display: flex; flex-direction: column; }
+        #inventory-drawer.open { right: 0; }
+        #inventory-drawer .drawer-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #eee; }
+        #inventory-drawer .drawer-body { padding: 12px 16px; overflow-y: auto; flex: 1; }
+        #inventory-drawer .drawer-footer { padding: 12px 16px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 8px; }
+        .inv-item { display: flex; align-items: center; gap: 12px; border: 1px solid #f0f0f0; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+        .inv-media img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; background: #fafafa; display: block; }
+        .inv-name { font-weight: 600; color: #222; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .inv-input-wrap { display: flex; align-items: center; }
+        .inv-input { width: 160px; height: 36px; appearance: textfield; -moz-appearance: textfield; text-align: center; border-radius: 10px; border: 1px solid #e5e7eb; background: #f9fafb; color: #111; }
+        .inv-input::-webkit-outer-spin-button,
+        .inv-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .inv-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); background: #fff; }
+        .inv-single { flex-direction: column; align-items: stretch; }
+        .inv-single .inv-top { display: flex; align-items: center; gap: 12px; }
+        .inv-single .inv-media img { width: 56px; height: 56px; border-radius: 10px; }
+        .inv-single .inv-name { font-size: 14px; }
+        .inv-single .inv-bottom { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+        .inv-single .inv-input-wrap { flex: 0 0 auto; }
+        .inv-single .inv-input { width: 180px; max-width: 240px; }
+        @media (max-width: 480px) {
+            .inv-item { gap: 8px; }
+            .inv-input { width: 130px; height: 34px; }
+            .inv-single .inv-input { max-width: 200px; }
+        }
+    </style>
+    @endpush
+
+    @push('notifications')
+    <div id="inventory-drawer-backdrop"></div>
+    <div id="inventory-drawer">
+        <div class="drawer-header">
+            <div id="inventory-drawer-title"></div>
+            <button id="inventory-drawer-close" class="btn btn-default">×</button>
+        </div>
+        <div class="drawer-body" id="inventory-drawer-content"></div>
+        <div class="drawer-footer">
+            <button class="btn btn-default" id="inventory-drawer-close">{{ trans('admin::admin.buttons.cancel') }}</button>
+            <button class="btn btn-primary" id="inventory-drawer-save">{{ trans('admin::admin.buttons.save') }}</button>
+        </div>
+    </div>
+    @endpush

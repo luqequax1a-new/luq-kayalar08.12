@@ -26,6 +26,7 @@ class ProductEditResource extends JsonResource
             'short_description' => $this->short_description,
             'brand_id' => $this->brand_id ?? '',
             'sale_unit_id' => $this->sale_unit_id ?? '',
+            'unit_suffix' => $this->saleUnit ? $this->saleUnit->getDisplaySuffix() : '',
             'categories' => $this->categories->pluck('id'),
             'tags' => $this->tags->pluck('id'),
             'attributes' => ProductAttributeResource::collection($this->attributes),

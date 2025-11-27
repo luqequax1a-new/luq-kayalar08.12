@@ -39,7 +39,8 @@ class OrderProduct extends Model
 
     public function url()
     {
-        return route('products.show', ['slug' => $this->product->slug]);
+        $slug = $this->product ? $this->product->slug : ($this->product_slug ?: null);
+        return $slug ? route('products.show', ['slug' => $slug]) : '#';
     }
 
 
@@ -62,7 +63,7 @@ class OrderProduct extends Model
      */
     public function trashed()
     {
-        return $this->product->trashed();
+        return $this->product ? false : true;
     }
 
 
@@ -124,8 +125,7 @@ class OrderProduct extends Model
     public function product()
     {
         return $this->belongsTo(Product::class)
-            ->withoutGlobalScope('active')
-            ->withTrashed();
+            ->withoutGlobalScope('active');
     }
 
     public function product_variant()
@@ -143,7 +143,7 @@ class OrderProduct extends Model
      */
     public function getNameAttribute()
     {
-        return $this->product->name;
+        return $this->product ? $this->product->name : ($this->attributes['product_name'] ?? '');
     }
 
 
@@ -154,7 +154,7 @@ class OrderProduct extends Model
      */
     public function getSlugAttribute()
     {
-        return $this->product->slug;
+        return $this->product ? $this->product->slug : ($this->attributes['product_slug'] ?? '');
     }
 
 
@@ -177,7 +177,18 @@ class OrderProduct extends Model
      */
     public function getSkuAttribute()
     {
-        return $this->product_variant ? $this->product_variant->sku : $this->product->sku;
+        if ($this->product_variant) {
+            return $this->product_variant->sku;
+        }
+        if ($this->product) {
+            return $this->product->sku;
+        }
+        return $this->attributes['product_sku'] ?? '';
+    }
+
+    public function getUnitPriceAtOrderAttribute($value)
+    {
+        return $value === null ? null : Money::inDefaultCurrency($value);
     }
 
     public function getFormattedQuantityWithUnit(): string

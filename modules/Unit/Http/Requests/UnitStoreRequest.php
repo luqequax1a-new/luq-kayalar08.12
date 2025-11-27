@@ -17,6 +17,7 @@ class UnitStoreRequest extends FormRequest
             'info_bottom' => ['nullable', 'string', 'max:1000'],
             'step' => ['required', 'numeric', 'min:0.01'],
             'min' => ['required', 'numeric', 'min:0.01'],
+            'default_qty' => ['nullable', 'numeric', 'min:0.01', 'gte:min'],
             'is_default' => ['nullable', 'boolean'],
             'is_decimal_stock' => ['nullable', 'boolean'],
             'short_suffix' => ['nullable', 'string', 'max:10'],

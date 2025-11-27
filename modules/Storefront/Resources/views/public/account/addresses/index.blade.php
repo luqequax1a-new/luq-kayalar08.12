@@ -163,16 +163,7 @@
                                         </template>
                                     </div>
 
-                                    <div class="form-group">
-                                        <input
-                                            name="address_2"
-                                            type="text"
-                                            id="address-2"
-                                            placeholder="{{ trans('storefront::account.addresses.address_line_2') }}"
-                                            class="form-control"
-                                            x-model="form.address_2"
-                                        >
-                                    </div>
+                                
                                 </div>
 
                                 <div class="col-md-9">
@@ -181,13 +172,30 @@
                                             {{ trans('storefront::account.addresses.city') }}<span>*</span>
                                         </label>
 
-                                        <input
-                                            name="city"
-                                            type="text"
-                                            id="city"
-                                            class="form-control"
-                                            x-model="form.city"
-                                        >
+                                        <template x-if="form.country === 'TR' && districts.length">
+                                            <select
+                                                name="city"
+                                                id="city"
+                                                class="form-control arrow-black"
+                                                x-model="form.city"
+                                            >
+                                                <option value="">{{ trans('storefront::account.addresses.please_select') }}</option>
+
+                                                <template x-for="d in districts">
+                                                    <option :value="d" x-text="d"></option>
+                                                </template>
+                                            </select>
+                                        </template>
+
+                                        <template x-if="!(form.country === 'TR' && districts.length)">
+                                            <input
+                                                name="city"
+                                                type="text"
+                                                id="city"
+                                                class="form-control"
+                                                x-model="form.city"
+                                            >
+                                        </template>
 
                                         <template x-if="errors.has('city')">
                                             <span class="error-message" x-text="errors.get('city')"></span>
@@ -196,7 +204,7 @@
                                 </div>
 
                                 <div class="col-md-9">
-                                    <div class="form-group">
+                                    <div class="form-group" x-cloak x-show="!singleCountry || form.country !== 'TR'">
                                         <label for="zip">
                                             {{ trans('storefront::account.addresses.zip') }}<span>*</span>
                                         </label>
@@ -216,7 +224,7 @@
                                 </div>
 
                                 <div class="col-md-9">
-                                    <div class="form-group">
+                                    <div class="form-group" x-cloak x-show="!singleCountry">
                                         <label for="country">
                                             {{ trans('storefront::account.addresses.country') }}<span>*</span>
                                         </label>

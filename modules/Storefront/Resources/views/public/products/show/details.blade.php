@@ -74,10 +74,10 @@
             <template x-if="isActiveItem">
                 <div class="product-price">
                     <template x-if="hasSpecialPrice">
-                        <span class="special-price" x-text="formatCurrency(specialPrice)"></span>
+                        <span class="special-price" x-text="formatCurrency(specialPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')"></span>
                     </template>
 
-                    <span class="previous-price" x-text="formatCurrency(regularPrice)">
+                    <span class="previous-price" x-text="formatCurrency(regularPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')">
                         {!! $item->is_active ? $item->hasSpecialPrice() ? $item->special_price->format() : $item->price->format() : '' !!}
                     </span>
                 </div>
@@ -85,10 +85,10 @@
         @else
             <div class="product-price">
                 <template x-if="hasSpecialPrice">
-                    <span class="special-price" x-text="formatCurrency(specialPrice)"></span>
+                    <span class="special-price" x-text="formatCurrency(specialPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')"></span>
                 </template>
 
-                <span class="previous-price" x-text="formatCurrency(regularPrice)">
+                <span class="previous-price" x-text="formatCurrency(regularPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')">
                     {{ $item->hasSpecialPrice() ? $item->special_price->format() : $item->price->format() }}
                 </span>
             </div>
@@ -135,20 +135,24 @@
                             </button>
 
                             <div class="decimal-quantity-input">
+                                <span
+                                    class="input-overlay"
+                                    x-text="(product.unit_decimal ? Number(cartItemForm.qty).toFixed(2).replace(/\.00$/, '') : cartItemForm.qty) + (product.unit_suffix ? product.unit_suffix : '')"
+                                ></span>
                                 <input
                                     x-ref="inputQuantity"
-                                    type="number"
-                                    :step="product.unit_decimal ? 0.1 : stepQty"
-                                    :value="cartItemForm.qty"
+                                    type="text"
+                                    inputmode="decimal"
+                                    :value="isEditingQty ? qtyInput : cartItemForm.qty"
                                     autocomplete="off"
                                     :min="minQty"
                                     :max="maxQuantity"
                                     id="qty"
-                                    class="form-control input-quantity-decimal"
-                                    inputmode="decimal"
+                                    class="form-control input-quantity-decimal input-overlay-target"
                                     :disabled="isAddToCartDisabled"
-                                    @focus="$event.target.select()"
-                                    @input="updateQuantity(Number($event.target.value))"
+                                    @focus="beginEditQty($event)"
+                                    @blur="commitEditQty()"
+                                    @input="onQtyInput($event)"
                                     @keydown.up="updateQuantity(cartItemForm.qty + stepQty)"
                                     @keydown.down="updateQuantity(cartItemForm.qty - stepQty)"
                                 >
@@ -166,11 +170,12 @@
                         </div>
 
                         <div class="decimal-quantity-chips">
-                            <button type="button" class="chip" @click="updateQuantity(0.5)">0.5 <span x-text="product.unit_suffix"></span></button>
-                            <button type="button" class="chip" @click="updateQuantity(1)">1 <span x-text="product.unit_suffix"></span></button>
-                            <button type="button" class="chip" @click="updateQuantity(2)">2 <span x-text="product.unit_suffix"></span></button>
-                            <button type="button" class="chip" @click="updateQuantity(2.5)">2.5 <span x-text="product.unit_suffix"></span></button>
-                            <button type="button" class="chip" @click="updateQuantity(5)">5 <span x-text="product.unit_suffix"></span></button>
+                            <button type="button" class="chip" @click="updateQuantity(0.5)">0.5<span x-text="product.unit_suffix"></span></button>
+                            <button type="button" class="chip" @click="updateQuantity(1)">1<span x-text="product.unit_suffix"></span></button>
+                            <button type="button" class="chip" @click="updateQuantity(2)">2<span x-text="product.unit_suffix"></span></button>
+                            <button type="button" class="chip" @click="updateQuantity(2.5)">2.5<span x-text="product.unit_suffix"></span></button>
+                            <button type="button" class="chip" @click="updateQuantity(5)">5<span x-text="product.unit_suffix"></span></button>
+                            <button type="button" class="chip" @click="updateQuantity(10)">10<span x-text="product.unit_suffix"></span></button>
                         </div>
 
                         <div class="decimal-quantity-info" x-text="product.unit_info_bottom || `Minimum kesim: ${new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.unit_min)} ${product.unit_suffix}`"></div>

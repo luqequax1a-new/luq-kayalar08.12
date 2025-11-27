@@ -76,7 +76,7 @@ class StoreCartItemRequest extends Request
 
         return Product::with('options')
             ->select('id', 'manage_stock', 'qty', 'is_active')
-            ->find($product_id);
+            ->findOrFail($product_id);
     }
 
 
@@ -86,7 +86,7 @@ class StoreCartItemRequest extends Request
 
         if ($variant_id) {
             return ProductVariant::select('id', 'manage_stock', 'qty', 'is_active')
-                ->find($variant_id);
+                ->findOrFail($variant_id);
         }
     }
 

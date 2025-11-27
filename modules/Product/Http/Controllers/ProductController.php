@@ -3,6 +3,7 @@
 namespace Modules\Product\Http\Controllers;
 
 use Illuminate\Http\Response;
+use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Modules\FlashSale\Entities\FlashSale;
@@ -16,6 +17,8 @@ use Modules\Product\Filters\ProductFilter;
 use Illuminate\Contracts\Foundation\Application;
 use Modules\Product\Repositories\ProductRepository;
 use Modules\Product\Http\Middleware\SetProductSortOption;
+use Modules\Product\Entities\UrlRedirect;
+use Mcamara\LaravelLocalization\Facades\LaravelLocalization;
 
 class ProductController extends Controller
 {
@@ -59,7 +62,54 @@ class ProductController extends Controller
      */
     public function show($slug)
     {
-        $product = ProductRepository::findBySlug($slug);
+        $path = request()->getPathInfo();
+
+        $segments = explode('/', ltrim($path, '/'));
+        $supportedLocales = array_keys(LaravelLocalization::getSupportedLocales());
+        if (!empty($segments) && in_array($segments[0], $supportedLocales)) {
+            array_shift($segments);
+        }
+        $canonical = '/' . implode('/', $segments);
+
+        $preRedirect = UrlRedirect::query()
+            ->where('is_active', true)
+            ->where('source_path', $canonical)
+            ->first();
+
+        if ($preRedirect) {
+            $code = in_array((int) $preRedirect->status_code, [301, 302]) ? (int) $preRedirect->status_code : 301;
+            $target = $preRedirect->target_url ?: '/';
+            return redirect($target, $code);
+        }
+
+        try {
+            $product = ProductRepository::findBySlug($slug);
+        } catch (\Throwable $e) {
+            $sourcePath = '/products/' . ltrim($slug, '/');
+            $redirect = UrlRedirect::where('source_path', $sourcePath)
+                ->where('is_active', true)
+                ->first();
+
+            if ($redirect) {
+                $code = in_array((int) $redirect->status_code, [301, 302]) ? (int) $redirect->status_code : 301;
+                if ($redirect->target_type === 'product' && $redirect->target_id) {
+                    $target = ProductRepository::find($redirect->target_id);
+                    return redirect($target->url(), $code);
+                }
+                if ($redirect->target_type === 'category' && $redirect->target_id) {
+                    return redirect('/categories/' . $redirect->target_id, $code);
+                }
+                if ($redirect->target_type === 'home') {
+                    return redirect('/', $code);
+                }
+                if ($redirect->target_type === 'custom' && $redirect->target_url) {
+                    return redirect($redirect->target_url, $code);
+                }
+            }
+
+            $defaultStatus = (int) config('storefront.deleted_product_status', 410);
+            abort(in_array($defaultStatus, [404, 410]) ? $defaultStatus : 410);
+        }
         $relatedProducts = $product->relatedProducts()->with('variants')->forCard()->get();
         $upSellProducts = $product->upSellProducts()->with('variants')->forCard()->get();
         $review = $this->getReviewData($product);

@@ -7,7 +7,7 @@
         x-data="
             Checkout({
                 customerEmail: '{{ auth()->user()->email ?? null }}',
-                customerPhone: '{{ auth()->user()->phone ?? null }}',
+                customerPhone: '',
                 addresses: {{ $addresses }},
                 defaultAddress: {{ $defaultAddress }},
                 gateways: {{ $gateways }},
@@ -23,9 +23,32 @@
                 <div class="checkout-inner">
                     <div class="checkout-left">
                         @include('storefront::public.checkout.create.form.account_details')
-                        @include('storefront::public.checkout.create.form.billing_details')
                         @include('storefront::public.checkout.create.form.shipping_details')
                         @include('storefront::public.checkout.create.form.order_note')
+
+                        <div class="row">
+                            <div class="col-md-18">
+                                <div class="form-group ship-to-different-address-label">
+                                    <div class="ship-toggle-card d-flex align-items-center justify-content-between">
+                                        <label for="ship-to-different-address" class="form-check-label">
+                                            {{ trans('checkout::attributes.ship_to_a_different_address') }}
+                                        </label>
+
+                                        <label class="toggle-switch">
+                                            <input
+                                                type="checkbox"
+                                                name="ship_to_a_different_address"
+                                                id="ship-to-different-address"
+                                                x-model="form.ship_to_a_different_address"
+                                            >
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        @include('storefront::public.checkout.create.form.billing_details')
                     </div>
 
                     <div class="checkout-right">

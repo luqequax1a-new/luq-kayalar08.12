@@ -9,15 +9,18 @@ export function trans(langKey, replace = {}) {
 }
 
 export function formatCurrency(amount) {
-    return new Intl.NumberFormat(FleetCart.locale.replace("_", "-"), {
+    const formatted = new Intl.NumberFormat(FleetCart.locale.replace("_", "-"), {
         ...(FleetCart.locale === "ar" && {
             numberingSystem: "arab",
         }),
         style: "currency",
         currency: FleetCart.currency,
+        currencyDisplay: "symbol",
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     }).format(amount);
+
+    return formatted.replace("TRY", "₺");
 }
 
 export function generateUid() {

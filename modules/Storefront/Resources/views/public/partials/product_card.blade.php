@@ -89,21 +89,27 @@
         </ul>
     </div>
 
-    <div class="product-card-middle">
+    <div class="product-card-middle" :class="{ 'has-rating': hasVisibleRating }">
         <a :href="productUrl" class="product-name">
             <span x-text="productName"></span>
         </a> 
         
-        @include('storefront::public.partials.product_rating')
+        @include('storefront::public.partials.product_rating', ['data' => $data ?? null])
     </div>
 
     <div class="product-card-bottom">
         <div class="product-price">
             <template x-if="hasSpecialPrice">
-                <span class="special-price" x-text="formatCurrency(specialPrice)"></span>
+                <span
+                    class="special-price"
+                    x-text="unitSuffix ? formatCurrency(specialPrice) + ' /' + unitSuffix : formatCurrency(specialPrice)"
+                ></span>
             </template>
 
-            <span class="previous-price" x-text="formatCurrency(regularPrice)"></span>
+            <span
+                class="previous-price"
+                x-text="unitSuffix ? formatCurrency(regularPrice) + ' /' + unitSuffix : formatCurrency(regularPrice)"
+            ></span>
         </div>
 
         <template x-if="hasNoOption || isOutOfStock">

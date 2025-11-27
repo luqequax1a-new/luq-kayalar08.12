@@ -23,14 +23,42 @@
             </label>
 
             <div class="col-sm-12">
-                <input
-                    type="text"
-                    name="slug"
-                    id="slug"
-                    class="form-control"
-                    @change="setProductSlug($event.target.value)"
-                    v-model="form.slug"
-                />
+                <div class="input-group">
+                    <input
+                        type="text"
+                        name="slug"
+                        id="slug"
+                        class="form-control"
+                        @change="setProductSlug($event.target.value)"
+                        v-model="form.slug"
+                    />
+                    <span class="input-group-btn">
+                        <button
+                            type="button"
+                            class="btn btn-default"
+                            title="Slug oluştur"
+                            aria-label="Slug oluştur"
+                            @click="setProductSlug(form.name || '')"
+                        >
+                            <i class="fa fa-magic" aria-hidden="true"></i>
+                        </button>
+                    </span>
+                </div>
+
+                <div v-if="slugChanged" style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                    <small class="text-muted">
+                        Eski: <code>{{ oldUrl }}</code>
+                    </small>
+                    <small>→</small>
+                    <small class="text-muted">
+                        Yeni: <code>{{ newUrl }}</code>
+                    </small>
+                    <div class="switch" style="margin-left:auto;">
+                        <input type="checkbox" id="redirect-on-slug-change" name="redirect_on_slug_change" v-model="form.redirect_on_slug_change" />
+                        <label for="redirect-on-slug-change">301 yönlendirme</label>
+                    </div>
+                    <input type="hidden" name="original_slug" :value="form.original_slug" />
+                </div>
 
                 <span
                     class="help-block text-red"
@@ -82,18 +110,25 @@
 
                 <span
                     class="help-block text-red"
-                    v-if="errors.has('meta.meta_description')"
-                    v-text="errors.get('meta.meta_description')"
+                    v-if="errors.has('slug')"
+                    v-text="errors.get('slug')"
                 ></span>
             </div>
         </div>
+
+        
     </div>
 </template>
 
 <script setup>
+import { computed } from "vue";
 import { useForm } from "../composables/useForm";
 import { useProductMethods } from "../composables/useProductMethods";
 
 const { form, errors } = useForm();
 const { setProductSlug } = useProductMethods();
+
+const slugChanged = computed(() => !!form.original_slug && form.slug !== form.original_slug);
+const oldUrl = computed(() => `/products/${(form.original_slug || '').replace(/^\//,'')}`);
+const newUrl = computed(() => `/products/${(form.slug || '').replace(/^\//,'')}`);
 </script>

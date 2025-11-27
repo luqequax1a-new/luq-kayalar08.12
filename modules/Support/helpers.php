@@ -181,16 +181,24 @@ if (!function_exists('slugify')) {
      *
      * @param string $value
      */
-    function slugify($value)
-    {
-        $slug = preg_replace('/[\s<>[\]{}|\\^%&\$,\/:;=?@#\'\"]/', '-', mb_strtolower($value));
+function slugify($value)
+{
+        $value = strtr($value, [
+            'ş' => 's', 'Ş' => 's',
+            'ğ' => 'g', 'Ğ' => 'g',
+            'ı' => 'i', 'İ' => 'i', 'I' => 'i',
+            'ö' => 'o', 'Ö' => 'o',
+            'ü' => 'u', 'Ü' => 'u',
+            'ç' => 'c', 'Ç' => 'c',
+        ]);
+        $slug = preg_replace('/[\s<>[\]{}|\\^%&\$,\/:;=?@#\'\"]/','-', mb_strtolower($value));
 
         // Remove duplicate separators.
         $slug = preg_replace('/-+/', '-', $slug);
 
         // Trim special characters from the beginning and end of the slug.
         return trim($slug, '!"#$%&\'()*+,-./:;<=>?@[]^_`{|}~');
-    }
+}
 }
 
 if (!function_exists('v')) {
@@ -381,4 +389,3 @@ if (!function_exists('generate_color_shade')) {
         return $newColor->toHexString();
     }
 }
-

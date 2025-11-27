@@ -9,11 +9,13 @@ trait QueryScopes
         $query
             ->withName()
             ->withMedia()
+            ->with('saleUnit')
             ->withPrice()
             ->withCount('options')
             ->with('reviews')
             ->withStock()
             ->withNew()
+            ->addSelect(['products.sale_unit_id'])
             ->addSelect(
                 [
                     'products.id',

@@ -102,13 +102,16 @@ export function generateSlug(name) {
     // Letter "a"
     slug = slug.replace(/a|á|à|ã|ả|ạ|ă|ắ|ằ|ẵ|ẳ|ặ|â|ấ|ầ|ẫ|ẩ|ậ/gi, "a");
     // Letter "o"
-    slug = slug.replace(/o|ó|ò|õ|ỏ|ọ|ô|ố|ồ|ỗ|ổ|ộ|ơ|ớ|ờ|ỡ|ở|ợ/gi, "o");
+    slug = slug.replace(/o|ó|ò|õ|ỏ|ọ|ô|ố|ồ|ỗ|ổ|ộ|ơ|ớ|ờ|ỡ|ở|ợ|ö/gi, "o");
     // Letter "u"
-    slug = slug.replace(/u|ú|ù|ũ|ủ|ụ|ư|ứ|ừ|ữ|ử|ự/gi, "u");
+    slug = slug.replace(/u|ú|ù|ũ|ủ|ụ|ư|ứ|ừ|ữ|ử|ự|ü/gi, "u");
     // Letter "c"
     slug = slug.replace(/ć|ĉ|č|ċ|ç/gi, "c");
     // Letter "i"
-    slug = slug.replace(/î|ï|í|ī|į|ì/gi, "i");
+    slug = slug.replace(/î|ï|í|ī|į|ì|ı|İ/gi, "i");
+    // Turkish letters
+    slug = slug.replace(/ş|Ş/gi, "s");
+    slug = slug.replace(/ğ|Ğ/gi, "g");
     // Letter (/, ', ")
     slug = slug.replace(/\/|'|"|′|’|,|\?|\.|;|]|\[|\+|=|\$|%|&|<|>|:/g, " ");
     // Letter "d"

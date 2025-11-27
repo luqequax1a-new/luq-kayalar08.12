@@ -50,7 +50,7 @@ class CheckItemStock
     {
         if (!$this->passesUnitRules()) {
             return response()->json([
-                    'message' => 'Geçersiz miktar: minimum miktar ve adım kurallarına uyun.',
+                    'message' => 'Geçersiz miktar: minimum miktar kuralına uyun.',
                     'cart' => Cart::instance(),
                 ]
                 , 400);
@@ -78,7 +78,7 @@ class CheckItemStock
         if (!$this->hasStock()) {
             return response()->json([
                     'message' => trans('cart::messages.not_have_enough_quantity_in_stock', [
-                        'stock' => $this->item->qty,
+                        'stock' => $this->remainingStock(),
                     ]),
                     'cart' => Cart::instance(),
                 ]
@@ -86,6 +86,20 @@ class CheckItemStock
         }
 
         return $next($request);
+    }
+
+    private function remainingStock(): float
+    {
+        if (!$this->item->manage_stock) {
+            return (float) $this->item->qty;
+        }
+
+        if ($this->cartItem) {
+            $addedCartQty = Cart::addedQty($this->cartItem) - $this->cartItem->qty;
+            return (float) $this->item->qty - $addedCartQty;
+        }
+
+        return (float) $this->item->qty;
     }
 
     private function passesUnitRules(): bool
@@ -110,7 +124,7 @@ class CheckItemStock
     private function getProduct($id)
     {
         return Product::withName()
-            ->addSelect('id', 'in_stock', 'manage_stock', 'qty')
+            ->addSelect('id', 'in_stock', 'manage_stock', 'qty', 'sale_unit_id')
             ->where('id', $id)
             ->firstOrFail();
     }
@@ -126,44 +140,65 @@ class CheckItemStock
 
     private function hasFlashSaleStock(): bool
     {
-        if (!FlashSale::contains($this->product)) {
+        if ($this->variant || !FlashSale::contains($this->product)) {
             return true;
         }
 
         $remainingQty = FlashSale::remainingQty($this->product);
 
-        if ($this->cartItem) {
-            $addedCartQty = Cart::addedQty($this->cartItem);
-            // Exclude current cart item quantity from the total added cart quantity
-            // So, that current quantity is not added with the updated quantity.
-            $addedCartQty -= $this->cartItem->qty;
+        $rawQty = request('qty');
+        $qty = is_string($rawQty) ? (float) str_replace(',', '.', $rawQty) : (float) $rawQty;
 
+        $totalAdded = $this->totalAddedQtyForItem();
+        $otherAdded = $this->cartItem ? $totalAdded - (float) $this->cartItem->qty : $totalAdded;
 
-            return ($remainingQty - $addedCartQty) >= request('qty');
-        }
-
-        return $remainingQty >= request('qty');
+        return ($remainingQty - $otherAdded) >= $qty;
     }
 
 
     private function hasStock(): bool
     {
-        if (!$this->item->manage_stock) {
-            return true;
+        $rawQty = request('qty');
+        $qty = is_string($rawQty) ? (float) str_replace(',', '.', $rawQty) : (float) $rawQty;
+
+        $limitQty = $this->item->manage_stock
+            ? (float) $this->item->qty
+            : (((float) $this->item->qty) > 0 ? (float) $this->item->qty : INF);
+
+        $totalAdded = $this->totalAddedQtyForItem();
+        $otherAdded = $this->cartItem ? $totalAdded - (float) $this->cartItem->qty : $totalAdded;
+        $remaining = $limitQty - $otherAdded;
+
+        if (request()->routeIs('cart.items.update') && $this->cartItem) {
+            return $remaining >= $qty;
         }
 
-        if ($this->cartItem && request()->routeIs('cart.items.store')) {
-            $addedCartQty = Cart::addedQty($this->cartItem);
-
-            if ($this->item->qty >= $addedCartQty + request('qty')){
+        if (request()->routeIs('cart.items.store')) {
+            if ($remaining >= $qty) {
                 return true;
-            } else {
-                Cart::updateQuantity($this->cartItem->id,$this->item->qty);
-
-                return false;
             }
+
+            return false;
         }
 
-        return $this->item->qty >= request('qty');
+        return $remaining >= $qty;
+    }
+
+    private function totalAddedQtyForItem(): float
+    {
+        if (!$this->item) {
+            return 0.0;
+        }
+
+        $isVariant = $this->item instanceof ProductVariant;
+
+        return (float) Cart::items()
+            ->filter(function ($cartItem) use ($isVariant) {
+                if ($isVariant) {
+                    return $cartItem->variant && $cartItem->variant->id === $this->item->id;
+                }
+                return $cartItem->product->id === $this->item->id;
+            })
+            ->sum('qty');
     }
 }

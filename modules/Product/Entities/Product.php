@@ -14,7 +14,6 @@ use Modules\Support\Eloquent\Sluggable;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Modules\Support\Eloquent\Translatable;
 use Modules\Product\Entities\Concerns\IsNew;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Product\Entities\Concerns\HasStock;
 use Modules\Product\Entities\Concerns\Predicates;
 use Modules\Product\Entities\Concerns\Filterable;
@@ -35,7 +34,6 @@ class Product extends Model implements Sitemapable
         HasMetaData,
         HasSpecialPrice,
         HasStock,
-        SoftDeletes,
         IsNew,
         QueryScopes,
         ModelAccessors,
@@ -90,7 +88,6 @@ class Product extends Model implements Sitemapable
         'new_to' => 'datetime',
         'start_date' => 'datetime',
         'end_date' => 'datetime',
-        'deleted_at' => 'datetime',
         'qty' => 'decimal:2',
     ];
 
@@ -118,8 +115,10 @@ class Product extends Model implements Sitemapable
         'unit_step',
         'unit_suffix',
         'unit_decimal',
+        'deleted_at',
         'unit_info_top',
         'unit_info_bottom',
+        'unit_default_qty',
     ];
 
     /**
@@ -153,8 +152,10 @@ class Product extends Model implements Sitemapable
 
         static::saved(function ($product) {
             $attributes = request()->all();
+            $routeName = optional(request()->route())->getName();
 
-            if (!empty($attributes)) {
+            // Only sync relations when saving via product form
+            if (in_array($routeName, ['admin.products.store', 'admin.products.update']) && !empty($attributes)) {
                 $product->categories()->sync(array_get($attributes, 'categories', []));
                 $product->tags()->sync(array_get($attributes, 'tags', []));
                 $product->upSellProducts()->sync(array_get($attributes, 'up_sells', []));
@@ -185,7 +186,7 @@ class Product extends Model implements Sitemapable
             ->withName()
             ->withBaseImage()
             ->withPrice()
-            ->with('saleUnit')
+            ->with(['saleUnit','variants'])
             ->addSelect(['id', 'slug', 'is_active', 'in_stock', 'manage_stock', 'qty', 'created_at', 'updated_at'])
             ->addSelect(['sale_unit_id'])
             ->when($request->has('except'), function ($query) use ($request) {
@@ -359,6 +360,14 @@ class Product extends Model implements Sitemapable
         return $this->saleUnit?->info_bottom;
     }
 
+    public function getUnitDefaultQtyAttribute(): float
+    {
+        $min = (float) ($this->saleUnit?->min ?? 1);
+        $def = (float) ($this->saleUnit?->default_qty ?? $min);
+        return max($def, $min);
+    }
+
+
     public function getFormattedStock(): string
     {
         $stockSource = $this->variant ?? $this; // prefer current variant if available
@@ -372,5 +381,10 @@ class Product extends Model implements Sitemapable
         $suffix = $unit ? trim($unit->getDisplaySuffix()) : '';
 
         return $suffix !== '' ? "{$value} {$suffix}" : $value;
+    }
+
+    public function getDeletedAtAttribute($value)
+    {
+        return $value;
     }
 }

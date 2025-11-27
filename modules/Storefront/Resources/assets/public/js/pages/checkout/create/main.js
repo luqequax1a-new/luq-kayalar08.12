@@ -1,5 +1,7 @@
 import Errors from "../../../components/Errors";
 import "../../../components/CartItem";
+import sehirler from "@modules/../sehirler.json";
+import ilceler from "@modules/../ilceler.json";
 
 Alpine.data(
     "Checkout",
@@ -25,11 +27,21 @@ Alpine.data(
             newBillingAddress: false,
             newShippingAddress: false,
             ship_to_a_different_address: false,
+            invoice: {
+                title: "",
+                tax_office: "",
+                tax_number: "",
+            },
         },
         states: {
             billing: {},
             shipping: {},
         },
+        districts: {
+            billing: [],
+            shipping: [],
+        },
+        provincesTR: null,
         controller: null,
         shippingMethodName: null,
         applyingCoupon: false,
@@ -60,6 +72,10 @@ Alpine.data(
 
         get firstCountry() {
             return Object.keys(this.countries)[0];
+        },
+
+        get singleCountry() {
+            return Object.keys(this.countries).length === 1;
         },
 
         get hasBillingStates() {
@@ -122,6 +138,11 @@ Alpine.data(
                     }
                 }
             });
+
+            if (this.singleCountry) {
+                this.form.billing.country = this.firstCountry;
+                this.changeBillingCountry(this.firstCountry);
+            }
 
             this.$watch("form.billing.city", (newCity) => {
                 if (newCity) {
@@ -193,6 +214,13 @@ Alpine.data(
                 this.form.newBillingAddress = true;
                 this.form.newShippingAddress = true;
             }
+
+            if (this.singleCountry) {
+                this.changeBillingCountry(this.firstCountry);
+                this.changeShippingCountry(this.firstCountry);
+            }
+
+            this.form.ship_to_a_different_address = false;
 
             this.setTabReminder();
         },
@@ -310,10 +338,36 @@ Alpine.data(
 
         changeBillingCity(city) {
             this.form.billing.city = city;
+
+            if (this.form.billing.country === "TR" && this.districts.billing.length) {
+                const district = ilceler.find((d) => String(d.ilce_adi) === String(city));
+                if (district) {
+                    const provinceName = String(district.sehir_adi).toUpperCase();
+                    const code = Object.keys(this.states.billing).find(
+                        (c) => String(this.states.billing[c]).toUpperCase() === provinceName
+                    );
+                    if (code) {
+                        this.form.billing.state = code;
+                    }
+                }
+            }
         },
 
         changeShippingCity(city) {
             this.form.shipping.city = city;
+
+            if (this.form.shipping.country === "TR" && this.districts.shipping.length) {
+                const district = ilceler.find((d) => String(d.ilce_adi) === String(city));
+                if (district) {
+                    const provinceName = String(district.sehir_adi).toUpperCase();
+                    const code = Object.keys(this.states.shipping).find(
+                        (c) => String(this.states.shipping[c]).toUpperCase() === provinceName
+                    );
+                    if (code) {
+                        this.form.shipping.state = code;
+                    }
+                }
+            }
         },
 
         changeBillingZip(zip) {
@@ -330,6 +384,7 @@ Alpine.data(
             if (country === "") {
                 this.form.billing.state = "";
                 this.states.billing = {};
+                this.districts.billing = [];
 
                 return;
             }
@@ -337,7 +392,33 @@ Alpine.data(
             this.fetchStates(country, (response) => {
                 this.states.billing = response.data;
                 this.form.billing.state = "";
+
+                if (
+                    country === "TR" &&
+                    this.singleCountry &&
+                    Array.isArray(FleetCart.supportedLocales) &&
+                    FleetCart.supportedLocales.length === 1
+                ) {
+                    const firstStateCode = Object.keys(this.states.billing)[0];
+                    if (firstStateCode) {
+                        this.form.billing.state = firstStateCode;
+                        this.changeBillingState(firstStateCode);
+                        if (this.districts.billing.length) {
+                            this.form.billing.city = this.districts.billing[0];
+                        }
+                    }
+                }
             });
+
+            if (country === "TR") {
+                this.provincesTR = sehirler;
+                this.districts.billing = [];
+                this.form.billing.city = "";
+            } else {
+                this.provincesTR = null;
+                this.districts.billing = [];
+                this.form.billing.city = "";
+            }
         },
 
         changeShippingCountry(country) {
@@ -346,6 +427,7 @@ Alpine.data(
             if (country === "") {
                 this.form.shipping.state = "";
                 this.states.shipping = {};
+                this.districts.shipping = [];
 
                 return;
             }
@@ -353,7 +435,33 @@ Alpine.data(
             this.fetchStates(country, (response) => {
                 this.states.shipping = response.data;
                 this.form.shipping.state = "";
+
+                if (
+                    country === "TR" &&
+                    this.singleCountry &&
+                    Array.isArray(FleetCart.supportedLocales) &&
+                    FleetCart.supportedLocales.length === 1
+                ) {
+                    const firstStateCode = Object.keys(this.states.shipping)[0];
+                    if (firstStateCode) {
+                        this.form.shipping.state = firstStateCode;
+                        this.changeShippingState(firstStateCode);
+                        if (this.districts.shipping.length) {
+                            this.form.shipping.city = this.districts.shipping[0];
+                        }
+                    }
+                }
             });
+
+            if (country === "TR") {
+                this.provincesTR = sehirler;
+                this.districts.shipping = [];
+                this.form.shipping.city = "";
+            } else {
+                this.provincesTR = null;
+                this.districts.shipping = [];
+                this.form.shipping.city = "";
+            }
         },
 
         fetchStates(country, callback) {
@@ -362,10 +470,36 @@ Alpine.data(
 
         changeBillingState(state) {
             this.form.billing.state = state;
+
+            if (this.form.billing.country === "TR" && this.provincesTR) {
+                const provinceName = this.states.billing[state];
+                const districtsForProvince = ilceler
+                    .filter(
+                        (d) =>
+                            String(d.sehir_adi).toUpperCase() ===
+                            String(provinceName).toUpperCase()
+                    )
+                    .map((d) => d.ilce_adi);
+                this.districts.billing = districtsForProvince;
+                this.form.billing.city = "";
+            }
         },
 
         changeShippingState(state) {
             this.form.shipping.state = state;
+
+            if (this.form.shipping.country === "TR" && this.provincesTR) {
+                const provinceName = this.states.shipping[state];
+                const districtsForProvince = ilceler
+                    .filter(
+                        (d) =>
+                            String(d.sehir_adi).toUpperCase() ===
+                            String(provinceName).toUpperCase()
+                    )
+                    .map((d) => d.ilce_adi);
+                this.districts.shipping = districtsForProvince;
+                this.form.shipping.city = "";
+            }
         },
 
         changePaymentMethod(paymentMethod) {

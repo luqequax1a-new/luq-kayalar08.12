@@ -1,4 +1,6 @@
 import Errors from "../../../components/Errors";
+import sehirler from "@modules/../sehirler.json";
+import ilceler from "@modules/../ilceler.json";
 
 Alpine.data(
     "Addresses",
@@ -11,10 +13,16 @@ Alpine.data(
         loading: false,
         form: { state: "" },
         states: {},
+        districts: [],
+        provincesTR: null,
         errors: new Errors(),
 
         get firstCountry() {
             return Object.keys(this.countries)[0];
+        },
+
+        get singleCountry() {
+            return Object.keys(this.countries).length === 1;
         },
 
         get hasAddress() {
@@ -27,6 +35,23 @@ Alpine.data(
 
         init() {
             this.changeCountry(this.firstCountry);
+
+            if (this.singleCountry) {
+                this.form.country = this.firstCountry;
+            }
+
+            this.$watch("form.state", (newState) => {
+                if (this.form.country === "TR" && this.provincesTR) {
+                    const provinceName = this.states[newState];
+                    const province = this.provincesTR.find(
+                        (p) => p.name.toUpperCase() === provinceName.toUpperCase()
+                    );
+                    this.districts = province
+                        ? province.districts.map((d) => d.name)
+                        : [];
+                    this.form.city = "";
+                }
+            });
         },
 
         changeDefaultAddress(address) {
@@ -50,7 +75,40 @@ Alpine.data(
             this.form.country = country;
             this.form.state = "";
 
-            this.fetchStates(country);
+            this.fetchStates(country, () => {
+                if (
+                    country === "TR" &&
+                    this.singleCountry &&
+                    Array.isArray(FleetCart.supportedLocales) &&
+                    FleetCart.supportedLocales.length === 1
+                ) {
+                    const firstStateCode = Object.keys(this.states)[0];
+                    if (firstStateCode) {
+                        this.form.state = firstStateCode;
+                        const provinceName = this.states[firstStateCode];
+                        const districtsForProvince = ilceler
+                            .filter(
+                                (d) =>
+                                    String(d.sehir_adi).toUpperCase() ===
+                                    String(provinceName).toUpperCase()
+                            )
+                            .map((d) => d.ilce_adi);
+                        this.districts = districtsForProvince;
+                        if (this.districts.length) {
+                            this.form.city = this.districts[0];
+                        }
+                    }
+                }
+            });
+
+            if (country === "TR") {
+                this.provincesTR = sehirler;
+                this.districts = [];
+            } else {
+                this.provincesTR = null;
+                this.districts = [];
+                this.form.city = "";
+            }
         },
 
         async fetchStates(country, callback) {

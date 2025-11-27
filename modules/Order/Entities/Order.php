@@ -233,11 +233,15 @@ class Order extends Model
             'product_id' => $cartItem->product->id,
             'product_variant_id' => $cartItem->variant?->id,
             'unit_price' => $cartItem->unitPrice()->amount(),
+            'unit_price_at_order' => $cartItem->unitPrice()->amount(),
             'qty' => $cartItem->qty,
             'line_total' => $cartItem->totalPrice()->amount(),
             'unit_code' => $unit->code ?? null,
             'unit_label' => $unit->label ?? null,
             'unit_short_suffix' => $unit->short_suffix ?? null,
+            'product_name' => $cartItem->product->name,
+            'product_slug' => $cartItem->product->slug,
+            'product_sku' => $cartItem->variant?->sku ?? $cartItem->product->sku,
         ]);
 
         $orderProduct->storeVariations($cartItem->variations);

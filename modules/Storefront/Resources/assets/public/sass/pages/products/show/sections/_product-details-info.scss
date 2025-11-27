@@ -313,26 +313,35 @@
         }
     }
 
-    .details-info-middle-actions {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 16px;
+.details-info-middle-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    width: 100%;
+    max-width: 420px;
 
-        .btn-add-to-cart {
-            &.btn-loading {
-                &::after {
-                    width: 20px;
-                    height: 20px;
-                    mask: radial-gradient(
-                        farthest-side,
-                        transparent calc(100% - 1.3px),
-                        #fff 0
-                    );
-                }
+    .btn-add-to-cart {
+        align-self: flex-start;
+        width: 100%;
+        padding: 10px 16px;
+        font-size: 14px;
+        border-radius: 999px;
+        min-height: 42px;
+        line-height: 1;
+        &.btn-loading {
+            &::after {
+                width: 20px;
+                height: 20px;
+                mask: radial-gradient(
+                    farthest-side,
+                    transparent calc(100% - 1.3px),
+                    #fff 0
+                );
             }
         }
     }
+}
 
     .number-picker-lg {
         display: inline-flex;
@@ -655,23 +664,27 @@
         }
 
         .btn-add-to-cart {
-            width: auto;
+            width: 100%;
             margin-left: 0;
             align-self: flex-start;
+        }
+        .details-info-middle-actions {
+            max-width: 100%;
         }
     }
 }
     .decimal-quantity-card {
         flex-direction: column;
         align-items: flex-start;
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        padding: 14px 16px;
+        background: #ffffff;
+        border: 1px solid #ededed;
+        border-radius: 12px;
+        padding: 14px 14px;
         display: flex;
         gap: 10px;
         width: 100%;
-        max-width: 360px;
+        max-width: 420px;
+        box-shadow: 0 2px 8px rgba(17, 24, 39, 0.04);
 
         .decimal-quantity-header {
             display: flex;
@@ -694,18 +707,19 @@
 
         .decimal-quantity-main {
             display: grid;
-            grid-template-columns: 40px auto 40px;
+            grid-template-columns: 44px max-content 44px;
             align-items: center;
             gap: 0;
-            margin-bottom: 10px;
-            border: 1px solid #d1d5db;
+            width: max-content;
+            margin: 10px auto 4px;
+            border: 1px solid #e6e6e6;
             border-radius: 999px;
             background: #fff;
         }
 
         .btn-quantity {
-            height: 40px;
-            width: 40px;
+            height: 44px;
+            width: 44px;
             border-radius: 999px;
             border: none;
             background: transparent;
@@ -729,55 +743,85 @@
 
         .decimal-quantity-input {
             position: relative;
-            flex: 1;
+            justify-self: center;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            min-width: 160px;
         }
 
         .input-quantity-decimal {
-            width: 100%;
-            height: 38px;
+            width: 160px;
+            height: 42px;
             border-radius: 999px;
-            padding: 0 44px;
+            padding: 0 18px;
             text-align: center;
-            font-size: 15px;
+            font-size: 16px;
             border: none;
             background: transparent;
             box-shadow: none;
         }
 
         .input-suffix {
+            display: none;
+        }
+
+        .input-overlay {
             position: absolute;
-            right: 14px;
+            left: 50%;
             top: 50%;
-            transform: translateY(-50%);
-            color: var(--color-gray);
-            font-size: 14px;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+            color: var(--color-black);
             pointer-events: none;
+            white-space: nowrap;
+            padding: 0 6px;
+        }
+
+        .input-overlay-target {
+            color: transparent;
+            caret-color: var(--color-black);
+        }
+
+        .decimal-quantity-input:focus-within .input-overlay {
+            opacity: 0;
+        }
+
+        .decimal-quantity-input:focus-within .input-overlay-target {
+            color: var(--color-black);
         }
 
         .decimal-quantity-chips {
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 6px;
+            gap: 10px;
+            margin-bottom: 10px;
+            justify-content: center;
+            align-items: center;
         }
 
         .chip {
-            padding: 4px 10px;
-            border: 1px solid #e5e7eb;
-            background: #fff;
+            padding: 8px 16px;
+            border: 1px solid #eaeaea;
+            background: #fbfbfb;
             border-radius: 999px;
-            font-size: 13px;
+            font-size: 15px;
+            line-height: 1;
             transition: var(--transition-150);
+            box-shadow: 0 2px 6px rgba(17, 24, 39, 0.06);
 
             &:hover {
                 border-color: var(--color-primary);
                 color: var(--color-primary);
+                background: #ffffff;
             }
         }
 
         .decimal-quantity-info {
             font-size: 12px;
             color: var(--color-gray-dark);
+            text-align: center;
         }
     }
     // Remove native number input spinners

@@ -1,22 +1,7 @@
 <div class="shipping-details">
     <div class="row">
         <div class="col-md-18">
-            <div class="form-group ship-to-different-address-label">
-                <div class="form-check">
-                    <input
-                        type="checkbox"
-                        name="ship_to_a_different_address"
-                        id="ship-to-different-address"
-                        x-model="form.ship_to_a_different_address"
-                    >
-
-                    <label for="ship-to-different-address" class="form-check-label">
-                        {{ trans('checkout::attributes.ship_to_a_different_address') }}
-                    </label>
-                </div>
-            </div>
-
-            <div x-cloak x-show="form.ship_to_a_different_address" class="ship-to-different-address-form">
+            <div class="ship-to-different-address-form">
                 <h4 class="section-title">{{ trans('storefront::checkout.shipping_details') }}</h4>
 
                 <template x-if="hasAddress">
@@ -122,10 +107,10 @@
                             </div>
 
                             <div class="col-md-18">
-                                <div class="form-group">
-                                    <label for="shipping-address-1">
-                                        {{ trans('checkout::attributes.street_address') }}<span>*</span>
-                                    </label>
+                            <div class="form-group">
+                                <label for="shipping-address-1">
+                                    {{ trans('checkout::attributes.street_address') }}<span>*</span>
+                                </label>
 
                                     <input
                                         type="text"
@@ -140,85 +125,9 @@
                                         <span class="error-message" x-text="errors.get('shipping.address_1')"></span>
                                     </template>
                                 </div>
-
-                                <div class="form-group">
-                                    <input
-                                        type="text"
-                                        name="shipping[address_2]"
-                                        class="form-control"
-                                        placeholder="{{ trans('checkout::attributes.shipping.address_2') }}"
-                                        x-model="form.shipping.address_2"
-                                    >
-                                </div>
                             </div>
 
-                            <div class="col-md-9">
-                                <div class="form-group">
-                                    <label for="shipping-city">
-                                        {{ trans('checkout::attributes.shipping.city') }}<span>*</span>
-                                    </label>
-
-                                    <input
-                                        type="text"
-                                        name="shipping[city]"
-                                        :value="form.shipping.city"
-                                        id="shipping-city"
-                                        class="form-control"
-                                        @change="changeShippingCity($event.target.value)"
-                                    >
-
-                                    <template x-if="errors.has('shipping.city')">
-                                        <span class="error-message" x-text="errors.get('shipping.city')"></span>
-                                    </template>
-                                </div>
-                            </div>
-
-                            <div class="col-md-9">
-                                <div class="form-group">
-                                    <label for="shipping-zip">
-                                        {{ trans('checkout::attributes.shipping.zip') }}<span>*</span>
-                                    </label>
-
-                                    <input
-                                        type="text"
-                                        name="shipping[zip]"
-                                        :value="form.shipping.zip"
-                                        id="shipping-zip"
-                                        class="form-control"
-                                        @change="changeShippingZip($event.target.value)"
-                                    >
-
-                                    <template x-if="errors.has('shipping.zip')">
-                                        <span class="error-message" x-text="errors.get('shipping.zip')"></span>
-                                    </template>
-                                </div>
-                            </div>
-
-                            <div class="col-md-9">
-                                <div class="form-group">
-                                    <label for="shipping-country">
-                                        {{ trans('checkout::attributes.shipping.country') }}<span>*</span>
-                                    </label>
-
-                                    <select
-                                        name="shipping[country]"
-                                        id="shipping-country"
-                                        class="form-control arrow-black"
-                                        @change="changeShippingCountry($event.target.value)"
-                                    >
-                                        <option value="">{{ trans('storefront::checkout.please_select') }}
-                                        </option>
-
-                                        <template x-for="(name, code) in countries" :key="code">
-                                            <option :value="code" x-text="name"></option>
-                                        </template>
-                                    </select>
-
-                                    <template x-if="errors.has('shipping.country')">
-                                        <span class="error-message" x-text="errors.get('shipping.country')"></span>
-                                    </template>
-                                </div>
-                            </div>
+                            
 
                             <div class="col-md-9">
                                 <div class="form-group">
@@ -255,6 +164,92 @@
 
                                     <template x-if="errors.has('shipping.state')">
                                         <span class="error-message" x-text="errors.get('shipping.state')"></span>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <div class="col-md-9">
+                                <div class="form-group">
+                                    <label for="shipping-city">
+                                        {{ trans('checkout::attributes.shipping.city') }}<span>*</span>
+                                    </label>
+
+                                    <template x-if="form.shipping.country === 'TR' && districts.shipping.length">
+                                        <select
+                                            name="shipping[city]"
+                                            id="shipping-city"
+                                            class="form-control arrow-black"
+                                            @change="changeShippingCity($event.target.value)"
+                                        >
+                                            <option value="">{{ trans('storefront::checkout.please_select') }}</option>
+
+                                            <template x-for="d in districts.shipping" :key="d">
+                                                <option :value="d" x-text="d"></option>
+                                            </template>
+                                        </select>
+                                    </template>
+
+                                    <template x-if="!(form.shipping.country === 'TR' && districts.shipping.length)">
+                                        <input
+                                            type="text"
+                                            name="shipping[city]"
+                                            :value="form.shipping.city"
+                                            id="shipping-city"
+                                            class="form-control"
+                                            @change="changeShippingCity($event.target.value)"
+                                        >
+                                    </template>
+
+                                    <template x-if="errors.has('shipping.city')">
+                                        <span class="error-message" x-text="errors.get('shipping.city')"></span>
+                                    </template>
+                                </div>
+                            </div>
+
+                            
+
+                            <div class="col-md-9">
+                                <div class="form-group">
+                                    <label for="shipping-phone">Telefon<span>*</span></label>
+
+                                    <div class="input-group">
+                                        <span class="input-group-text">🇹🇷 +90</span>
+                                        <input
+                                            type="tel"
+                                            id="shipping-phone"
+                                            class="form-control"
+                                            placeholder="10 haneli, başında 0 olmadan"
+                                            inputmode="numeric"
+                                            pattern="^[1-9][0-9]{9}$"
+                                            x-model="form.customer_phone"
+                                            required
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-9">
+                                <div class="form-group" x-cloak x-show="!singleCountry">
+                                    <label for="shipping-country">
+                                        {{ trans('checkout::attributes.shipping.country') }}<span>*</span>
+                                    </label>
+
+                                    <select
+                                        name="shipping[country]"
+                                        id="shipping-country"
+                                        class="form-control arrow-black"
+                                        @change="changeShippingCountry($event.target.value)"
+                                    >
+                                        <option value="">{{ trans('storefront::checkout.please_select') }}
+                                        </option>
+
+                                        <template x-for="(name, code) in countries" :key="code">
+                                            <option :value="code" x-text="name"></option>
+                                        </template>
+                                    </select>
+
+                                    <template x-if="errors.has('shipping.country')">
+                                        <span class="error-message" x-text="errors.get('shipping.country')"></span>
                                     </template>
                                 </div>
                             </div>

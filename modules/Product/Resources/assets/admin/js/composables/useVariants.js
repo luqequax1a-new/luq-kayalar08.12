@@ -9,6 +9,14 @@ const defaultVariantUid = ref("");
 const variantsLength = ref(0);
 const variantPosition = ref(0);
 
+function generateSku() {
+    const letters = Array.from({ length: 3 }, () =>
+        String.fromCharCode(65 + Math.floor(Math.random() * 26)),
+    ).join("");
+    const digits = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+    return `${letters}${digits}`;
+}
+
 export function useVariants() {
     const { form, clearErrors } = useForm();
     const {
@@ -316,7 +324,7 @@ export function useVariants() {
             is_active: true,
             is_open: false,
             media: [],
-            sku: null,
+            sku: generateSku(),
             price: null,
             special_price: null,
             special_price_type: "fixed",

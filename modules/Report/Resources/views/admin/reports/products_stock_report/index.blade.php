@@ -50,11 +50,7 @@
                     @forelse ($report as $product)
                         <tr>
                             <td>
-                                @if ($product->trashed())
-                                    {{ $product->name }}
-                                @else
-                                    <a href="{{ route('admin.products.edit', $product) }}">{{ $product->name }}</a>
-                                @endif
+                                <a href="{{ route('admin.products.edit', $product) }}">{{ $product->name }}</a>
                             </td>
 
                             <td>

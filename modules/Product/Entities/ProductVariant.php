@@ -81,6 +81,20 @@ class ProductVariant extends Model
                     'selling_price' => ($productVariant->hasSpecialPrice() ? $productVariant->getSpecialPrice() : $productVariant->price)->amount(),
                 ]);
             });
+
+            try {
+                $product = $productVariant->product()->withoutGlobalScope('active')->first();
+                if ($product) {
+                    $sumQty = (float) $product->variants()
+                        ->withoutGlobalScope('active')
+                        ->where('is_active', true)
+                        ->sum('qty');
+                    $product->withoutEvents(function () use ($product, $sumQty) {
+                        $product->update(['qty' => $sumQty]);
+                    });
+                }
+            } catch (\Throwable $e) {
+            }
         });
     }
 
@@ -277,11 +291,11 @@ class ProductVariant extends Model
 
     public function isInStock(): bool
     {
-        if ($this->manage_stock && $this->qty === 0) {
+        if ($this->manage_stock && (float) $this->qty <= 0) {
             return false;
         }
 
-        return (bool)$this->in_stock;
+        return (bool) $this->in_stock;
     }
 
 

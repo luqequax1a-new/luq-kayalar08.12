@@ -30,17 +30,68 @@ class ProductTable extends AdminTable
                 ]);
             })
             ->editColumn('price', function (Product $product) {
-                return product_price_formatted($product->variant ?? $product, function ($price, $specialPrice) use ($product) {
-                    if ($product->variant ? $product->variant->hasSpecialPrice() : $product->hasSpecialPrice()) {
-                        return "<span class='m-r-5'>{$specialPrice}</span>
-                            <del class='text-red'>{$price}</del>";
+                if ($product->variants && $product->variants->count() > 0) {
+                    $variants = $product->variants;
+
+                    $originalMin = $variants->min(function ($v) { return $v->price->amount(); });
+                    $originalMax = $variants->max(function ($v) { return $v->price->amount(); });
+
+                    $promoMin = $variants->min(function ($v) { return $v->getSellingPrice()->amount(); });
+                    $promoMax = $variants->max(function ($v) { return $v->getSellingPrice()->amount(); });
+
+                    $originalMinFmt = \Modules\Support\Money::inDefaultCurrency($originalMin)->convertToCurrentCurrency()->format();
+                    $originalMaxFmt = \Modules\Support\Money::inDefaultCurrency($originalMax)->convertToCurrentCurrency()->format();
+                    $promoMinFmt = \Modules\Support\Money::inDefaultCurrency($promoMin)->convertToCurrentCurrency()->format();
+                    $promoMaxFmt = \Modules\Support\Money::inDefaultCurrency($promoMax)->convertToCurrentCurrency()->format();
+
+                    $originalRange = $originalMinFmt === $originalMaxFmt ? $originalMinFmt : "$originalMinFmt - $originalMaxFmt";
+                    $promoRange = $promoMinFmt === $promoMaxFmt ? $promoMinFmt : "$promoMinFmt - $promoMaxFmt";
+
+                    if ($originalRange !== $promoRange) {
+                        return "<div class='price-cell'><div class='price-top'><del class='text-red'>{$originalRange}</del></div><div class='price-bottom'>{$promoRange}</div></div>";
                     }
 
-                    return "<span class='m-r-5'>{$price}</span>";
+                    return "<div class='price-cell'><div class='price-bottom'>{$originalRange}</div></div>";
+                }
+
+                // single/variant default
+                $priceHtml = product_price_formatted($product->variant ?? $product, function ($price, $specialPrice) use ($product) {
+                    if ($product->variant ? $product->variant->hasSpecialPrice() : $product->hasSpecialPrice()) {
+                        return "<div class='price-cell'><div class='price-top'><del class='text-red'>{$price}</del></div><div class='price-bottom'>{$specialPrice}</div></div>";
+                    }
+                    return "<div class='price-cell'><div class='price-bottom'>{$price}</div></div>";
                 });
+
+                return $priceHtml;
             })
             ->editColumn('in_stock', function (Product $product) {
-                return e($product->getFormattedStock());
+                $clickable = (bool) $product->manage_stock || ($product->variants && $product->variants->where('manage_stock', true)->count() > 0);
+
+                if ($product->variants && $product->variants->count() > 0) {
+                    $activeVariants = $product->variants->where('is_active', true);
+                    $count = $activeVariants->count();
+                    $sumQty = (float) $activeVariants->sum(function ($v) { return (float) $v->qty; });
+
+                    $suffix = $product->saleUnit ? trim($product->saleUnit->getDisplaySuffix()) : '';
+                    $value = fmod($sumQty, 1) === 0.0
+                        ? (string) (int) $sumQty
+                        : rtrim(rtrim(number_format($sumQty, 2, '.', ''), '0'), '.');
+                    $stockText = $suffix !== '' ? "$value $suffix" : $value;
+
+                    $inner = "<div class='stock-total'>" . e($stockText) . "</div>"
+                        . "<div class='stock-count'>" . e("{$count} varyant") . "</div>";
+
+                    if ($clickable) {
+                        return "<a href='#' class='inventory-click' data-id='{$product->id}'>" . $inner . "</a>";
+                    }
+                    return "<div class='stock-cell-disabled'>" . $inner . "</div>";
+                }
+
+                $text = e($product->getFormattedStock());
+                if ($clickable) {
+                    return "<a href='#' class='inventory-click' data-id='{$product->id}'>" . $text . "</a>";
+                }
+                return $text;
             })
             ->editColumn('name', function (Product $product) {
                 $url = route('admin.products.edit', $product->id);
@@ -59,6 +110,15 @@ class ProductTable extends AdminTable
                 $viewUrl = route('products.show', $product->slug);
                 $deleteId = $product->id;
 
+                $duplicateForm = "<form method='POST' action='" . e(route('admin.products.duplicate', $product->id)) . "' style='display:inline'>" . csrf_field() . "
+                        <button type='submit' class='action-duplicate m-l-10' title='Copy' aria-label='Copy product' data-toggle='tooltip' style='background:none;border:none;padding:0;'>
+                            <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none'>
+                                <rect x='9' y='9' width='10' height='10' rx='2' stroke='#292D32' stroke-width='1.5'/>
+                                <rect x='5' y='5' width='10' height='10' rx='2' stroke='#292D32' stroke-width='1.5'/>
+                            </svg>
+                        </button>
+                    </form>";
+
                 return "<div class='d-flex align-items-center'>
                     <a href='{$editUrl}' class='action-edit' title='Edit' data-toggle='tooltip'>
                         <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none'>
@@ -73,6 +133,7 @@ class ProductTable extends AdminTable
                             <path d='M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z' stroke='#292D32' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/>
                         </svg>
                     </a>
+                    {$duplicateForm}
                     <a href='#' class='action-delete m-l-10' data-id='{$deleteId}' title='Delete' data-toggle='tooltip' data-confirm>
                         <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none'>
                             <path d='M9 3H15' stroke='#292D32' stroke-width='1.5' stroke-linecap='round'/>

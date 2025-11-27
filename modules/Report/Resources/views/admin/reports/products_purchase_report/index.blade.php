@@ -42,11 +42,7 @@
                             <td>{{ $product->start_date->toFormattedDateString() }} - {{ $product->end_date->toFormattedDateString() }}</td>
 
                             <td>
-                                @if ($product->trashed())
-                                    {{ $product->name }}
-                                @else
-                                    <a href="{{ route('admin.products.edit', $product) }}">{{ $product->name }}</a>
-                                @endif
+                                <a href="{{ route('admin.products.edit', $product) }}">{{ $product->name }}</a>
                             </td>
 
                             <td>{{ $product->qty }}</td>

@@ -84,6 +84,14 @@
             font-weight: var(--font-medium);
         }
 
+        .product-info-bottom {
+            .line-summary {
+                display: inline-block;
+                font-size: 13px;
+                color: #0f172a;
+            }
+        }
+
         .number-picker {
             width: auto;
             margin: 13px 5px 0 0;
@@ -160,6 +168,8 @@
 
             > li {
                 color: var(--color-black);
+                font-size: 14px;
+                font-weight: var(--font-medium);
             }
 
             + .product-options {

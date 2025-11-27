@@ -43,6 +43,7 @@ class Kernel extends HttpKernel
         TrustProxies::class,
         RedirectToInstallerIfNotInstalled::class,
         RunUpdater::class,
+        \FleetCart\Http\Middleware\UrlRedirectMiddleware::class,
     ];
 
     /**

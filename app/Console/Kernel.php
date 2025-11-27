@@ -16,6 +16,7 @@ class Kernel extends ConsoleKernel
         Commands\ScaffoldModuleCommand::class,
         Commands\ScaffoldEntityCommand::class,
         Commands\ManualInstallCommand::class,
+        \Modules\Order\Console\BackfillOrderProductsSnapshots::class,
     ];
 
 

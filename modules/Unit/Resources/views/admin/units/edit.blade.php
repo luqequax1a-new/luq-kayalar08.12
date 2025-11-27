@@ -52,6 +52,11 @@
                         </div>
 
                         <div class="form-group">
+                            <label for="default_qty">Varsayılan Miktar</label>
+                            <input type="number" step="0.01" name="default_qty" id="default_qty" class="form-control" value="{{ old('default_qty', $unit->default_qty) }}">
+                        </div>
+
+                        <div class="form-group">
                             <label for="step">Step</label>
                             <input type="number" step="0.01" name="step" id="step" class="form-control" value="{{ old('step', $unit->step) }}">
                         </div>
@@ -61,10 +66,7 @@
                             <label class="form-check-label" for="is_decimal_stock">Ondalıklı Stok</label>
                         </div>
 
-                        <div class="form-group form-check">
-                            <input type="checkbox" name="is_default" id="is_default" class="form-check-input" value="1" {{ old('is_default', $unit->is_default) ? 'checked' : '' }}>
-                            <label class="form-check-label" for="is_default">Varsayılan Birim</label>
-                        </div>
+                        
                     </div>
 
                     <div class="card-footer">

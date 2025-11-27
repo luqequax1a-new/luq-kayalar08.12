@@ -46,5 +46,21 @@ class SidebarExtender extends BaseSidebarExtender
                 });
             });
         });
+
+        $menu->group(trans('admin::sidebar.system'), function (Group $group) {
+            $group->item('SEO', function (Item $item) {
+                $item->icon('fa fa-external-link');
+                $item->weight(20);
+                $item->route('admin.redirects.index');
+                $item->authorize(true);
+
+                $item->item('Yönlendirmeler', function (Item $item) {
+                    $item->weight(1);
+                    $item->route('admin.redirects.index');
+                    $item->isActiveWhen(route('admin.redirects.index', null, false));
+                    $item->authorize(true);
+                });
+            });
+        });
     }
 }
