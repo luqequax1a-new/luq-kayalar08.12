@@ -14,6 +14,7 @@
                         type="text"
                         name="tracking_reference"
                         id="tracking_reference"
+                        data-id="{{ $order->id }}"
                         class="form-control @error('tracking_reference') is-invalid @enderror"
                         value="{{ old('tracking_reference', $order->tracking_reference) }}"
                         placeholder="{{ trans('order::orders.tracking_reference_placeholder') }}"

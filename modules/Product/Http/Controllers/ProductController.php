@@ -19,6 +19,8 @@ use Modules\Product\Repositories\ProductRepository;
 use Modules\Product\Http\Middleware\SetProductSortOption;
 use Modules\Product\Entities\UrlRedirect;
 use Mcamara\LaravelLocalization\Facades\LaravelLocalization;
+use Illuminate\Support\Str;
+ 
 
 class ProductController extends Controller
 {
@@ -93,7 +95,7 @@ class ProductController extends Controller
             if ($redirect) {
                 $code = in_array((int) $redirect->status_code, [301, 302]) ? (int) $redirect->status_code : 301;
                 if ($redirect->target_type === 'product' && $redirect->target_id) {
-                    $target = ProductRepository::find($redirect->target_id);
+                    $target = app(ProductRepository::class)->find($redirect->target_id);
                     return redirect($target->url(), $code);
                 }
                 if ($redirect->target_type === 'category' && $redirect->target_id) {
@@ -121,6 +123,13 @@ class ProductController extends Controller
             'unit_decimal',
         ]);
 
+        // Ensure productMedia is loaded for frontend JSON (used by Alpine)
+        try {
+            $product->load(['productMedia' => function ($q) {
+                $q->active()->orderBy('position');
+            }]);
+        } catch (\Throwable $e) {}
+
         $flashSalePrice = false;
 
         if ($product->is_in_flash_sale) {
@@ -137,11 +146,153 @@ class ProductController extends Controller
                 ->withoutGlobalScope('active')
                 ->where('uid', $requestedVariant)
                 ->firstOrFail();
+            $valueUids = array_filter(explode('.', (string) $product->variant->uids));
+            $product->loadMissing(['variations.values']);
+            $readableParams = [];
+            foreach ($product->variations as $variation) {
+                $key = Str::slug($variation->name);
+                if (!$key) {
+                    continue;
+                }
+                $selectedValue = $variation->values->first(function ($value) use ($valueUids) {
+                    return in_array($value->uid, $valueUids, true);
+                });
+                if (!$selectedValue) {
+                    continue;
+                }
+                $valueSlug = Str::slug($selectedValue->label);
+                if (!$valueSlug) {
+                    continue;
+                }
+                $readableParams[$key] = $valueSlug;
+            }
+            $targetUrl = route('products.show', $product->slug);
+            if (!empty($readableParams)) {
+                $targetUrl .= '?' . http_build_query($readableParams);
+            }
+            return redirect()->to($targetUrl, 301);
+        } else {
+            $product->load(['variations.values']);
+
+            $selectedUids = [];
+            foreach ($product->variations as $variation) {
+                $key = Str::slug($variation->name);
+                $raw = request()->query($key);
+                if (!$raw) {
+                    continue;
+                }
+
+                $valueSlug = Str::slug($raw);
+                $valueUid = null;
+                foreach ($variation->values as $value) {
+                    if (Str::slug($value->label) === $valueSlug) {
+                        $valueUid = $value->uid;
+                        break;
+                    }
+                }
+
+                if ($valueUid) {
+                    $selectedUids[] = $valueUid;
+                }
+            }
+
+            if (!empty($selectedUids)) {
+                sort($selectedUids);
+                $uidsString = implode('.', $selectedUids);
+
+                $matched = $product->variants()
+                    ->withoutGlobalScope('active')
+                    ->where('uids', $uidsString)
+                    ->first();
+
+                if ($matched) {
+                    $product->variant = $matched;
+                } else {
+                    $product->variant = $product->variants()
+                        ->withoutGlobalScope('active')
+                        ->default()
+                        ->first();
+                }
+            } else {
+                $product->variant = $product->variants()
+                    ->withoutGlobalScope('active')
+                    ->default()
+                    ->first();
+            }
+        }
+
+        // Build unified gallery: base image first, then other images, then videos (by extension)
+        $gallery = [];
+        $baseId = $product->base_image->id ?? null;
+
+        if ($product->base_image) {
+            $gallery[] = [
+                'type' => 'image',
+                'src' => $product->base_image->detail_jpeg_url ?? $product->base_image->path,
+                'thumb' => $product->base_image->thumb_jpeg_url ?? $product->base_image->path,
+                'alt' => $product->name,
+            ];
+        }
+
+        foreach ($product->media as $media) {
+            $rawPath = $media->getRawOriginal('path');
+            $ext = strtolower(pathinfo((string) $rawPath, PATHINFO_EXTENSION));
+            $isVideo = in_array($ext, ['mp4', 'webm', 'ogg']);
+            if (!$isVideo) {
+                // skip base image duplicate
+                if ($baseId && $media->id === $baseId) continue;
+                $gallery[] = [
+                    'type' => 'image',
+                    'src' => $media->detail_jpeg_url ?? $media->path,
+                    'thumb' => $media->thumb_jpeg_url ?? $media->path,
+                    'alt' => $product->name,
+                ];
+            }
+        }
+
+        $variantVideos = collect();
+        try {
+            if ($product->variant) {
+                $variantVideos = $product->productMedia()->active()->videos()->where('variant_id', $product->variant->id)->get();
+                if ($variantVideos->isEmpty()) {
+                    $variantVideos = $product->productMedia()->active()->videos()->whereNull('variant_id')->get();
+                }
+            } else {
+                $variantVideos = $product->productMedia()->active()->videos()->whereNull('variant_id')->get();
+            }
+        } catch (\Throwable $e) {}
+
+        foreach ($variantVideos as $media) {
+            $variantBase = optional($product->variant)->base_image?->path;
+            $poster = $media->poster ?: ($variantBase ?: ($product->base_image?->path ?? asset('build/assets/image-placeholder.png')));
+            $gallery[] = [
+                'type' => 'video',
+                'src' => $media->path,
+                'thumb' => $poster,
+                'alt' => 'Ürün video – ' . $product->name,
+            ];
+        }
+
+        if (!empty($gallery)) {
+            if ($gallery[0]['type'] !== 'image') {
+                // ensure first item is always image for LCP
+                usort($gallery, function ($a, $b) {
+                    return ($a['type'] === 'image' ? 0 : 1) <=> ($b['type'] === 'image' ? 0 : 1);
+                });
+            }
         }
 
         event(new ProductViewed($product));
 
-        return view('storefront::public.products.show', compact('product', 'relatedProducts', 'upSellProducts', 'review', 'flashSalePrice'));
+        $firstVideo = null;
+        foreach ($gallery as $gi) {
+            if (($gi['type'] ?? '') === 'video') { $firstVideo = $gi; break; }
+        }
+        $hasVideo = $firstVideo !== null;
+        $videoUrl = $hasVideo ? ($firstVideo['src'] ?? null) : null;
+        $videoThumbnailUrl = $hasVideo ? ($firstVideo['thumb'] ?? ($product->base_image?->path ?? null)) : null;
+
+        return view('storefront::public.products.show', compact('product', 'relatedProducts', 'upSellProducts', 'review', 'flashSalePrice', 'gallery', 'hasVideo', 'videoUrl', 'videoThumbnailUrl'));
     }
 
 

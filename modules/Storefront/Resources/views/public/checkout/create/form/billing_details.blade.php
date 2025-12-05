@@ -25,15 +25,25 @@
                             </template>
                             
                             <div class="address-card-data">
-                                <span x-text="address.full_name"></span>
-                                <span x-text="address.address_1"></span>
+                                <template x-if="address.invoice_title || address.company_name">
+                                    <span x-text="`Firma Adı: ${address.invoice_title || address.company_name}`"></span>
+                                </template>
+                                <template x-if="address.invoice_tax_number || address.tax_number">
+                                    <span x-text="`Vergi Numarası / TCKN: ${address.invoice_tax_number || address.tax_number}`"></span>
+                                </template>
+                                <template x-if="address.invoice_tax_office || address.tax_office">
+                                    <span x-text="`Vergi Dairesi: ${address.invoice_tax_office || address.tax_office}`"></span>
+                                </template>
 
+                                <span x-text="address.address_line || address.address_1"></span>
                                 <template x-if="address.address_2">
                                     <span x-text="address.address_2"></span>
                                 </template>
 
-                                <span x-html="`${address.city}, ${address.state_name ?? address.state} ${address.zip}`"></span>
-                                <span x-text="address.country_name"></span>
+                                <span x-text="`${address.city_title ?? address.city}, ${address.state_name ?? address.state}`"></span>
+                                <template x-if="address.phone">
+                                    <span x-text="`Telefon: ${address.phone}`"></span>
+                                </template>
                             </div>
                         </address>
                     </div>
@@ -59,182 +69,127 @@
 
         <div class="add-new-address-form" x-show="!hasAddress || form.newBillingAddress">
             <div class="row">
-                
-                
+
+                <!-- Name fields removed: Billing adında zorunlu değil -->
 
                 <!-- Invoice block first -->
                 <div class="col-md-9">
                     <div class="form-group">
-                        <label for="invoice-title">Firma Adı</label>
+                        <label for="billing-company-name">Firma Adı</label>
 
                         <input
                             type="text"
-                            id="invoice-title"
+                            name="billing[company_name]"
+                            id="billing-company-name"
                             class="form-control"
-                            x-model="form.invoice.title"
+                            x-model="form.billing.company_name"
                         >
+                        <template x-if="errors.has('billing.company_name')">
+                            <span class="error-message" x-text="errors.get('billing.company_name')"></span>
+                        </template>
                     </div>
                 </div>
 
                 <div class="col-md-9">
                     <div class="form-group">
-                        <label for="invoice-tax-number">Vergi Numarası / TCKN</label>
+                        <label for="billing-tax-number">Vergi Numarası / TCKN</label>
 
                         <input
                             type="text"
-                            id="invoice-tax-number"
+                            name="billing[tax_number]"
+                            id="billing-tax-number"
                             class="form-control"
-                            x-model="form.invoice.tax_number"
+                            x-model="form.billing.tax_number"
                         >
+                        <template x-if="errors.has('billing.tax_number')">
+                            <span class="error-message" x-text="errors.get('billing.tax_number')"></span>
+                        </template>
                     </div>
                 </div>
 
                 <div class="col-md-18">
                     <div class="form-group">
-                        <label for="invoice-tax-office">Vergi Dairesi</label>
+                        <label for="billing-tax-office">Vergi Dairesi</label>
 
                         <input
                             type="text"
-                            id="invoice-tax-office"
+                            name="billing[tax_office]"
+                            id="billing-tax-office"
                             class="form-control"
-                            x-model="form.invoice.tax_office"
+                            x-model="form.billing.tax_office"
                         >
+                        <template x-if="errors.has('billing.tax_office')">
+                            <span class="error-message" x-text="errors.get('billing.tax_office')"></span>
+                        </template>
                     </div>
                 </div>
 
                 <!-- Address line -->
                 <div class="col-md-18">
                     <div class="form-group">
-                        <label for="billing-address-1">
-                            {{ trans('checkout::attributes.street_address') }}<span>*</span>
+                        <label for="billing-address-line">
+                            {{ trans('checkout::attributes.street_address') }}
                         </label>
 
                         <input
                             type="text"
-                            name="billing[address_1]"
-                            id="billing-address-1"
+                            name="billing[address_line]"
+                            id="billing-address-line"
                             class="form-control"
                             placeholder="{{ trans('checkout::attributes.billing.address_1') }}"
-                            x-model="form.billing.address_1"
+                            x-model="form.billing.address_line"
                         >
 
-                        <template x-if="errors.has('billing.address_1')">
-                            <span class="error-message" x-text="errors.get('billing.address_1')"></span>
+                        <template x-if="errors.has('billing.address_line')">
+                            <span class="error-message" x-text="errors.get('billing.address_line')"></span>
                         </template>
                     </div>
                 </div>
 
-                <!-- State & City side-by-side -->
+                <!-- Province -->
                 <div class="col-md-9">
                     <div class="form-group">
-                        <label for="billing-state">
-                            {{ trans('checkout::attributes.billing.state') }}<span>*</span>
-                        </label>
-
-                        <template x-if="!hasBillingStates">
-                            <input
-                                type="text"
-                                name="billing[state]"
-                                id="billing-state"
-                                class="form-control"
-                                x-model="form.billing.state"
-                            >
-                        </template>
-
-                        <template x-if="hasBillingStates">
-                            <select
-                                name="billing[state]"
-                                id="billing-state"
-                                class="form-control arrow-black"
-                                @change="changeBillingState($event.target.value)"
-                            >
+                        <label for="billing-city-id">İl</label>
+                            <select name="billing[city_id]" id="billing-city-id" class="form-control arrow-black" x-model="form.billing.city_id" @change="changeBillingCityId($event.target.value)">
                                 <option value="">{{ trans('storefront::checkout.please_select') }}</option>
-
-                                <template x-for="(name, code) in states.billing" :key="code">
-                                    <option :value="code" x-html="name"></option>
+                                <template x-for="p in provincesTR" :key="p.sehir_id || p.sehir_adi">
+                                    <option :value="p.sehir_id ?? p.sehir_adi" x-text="p.sehir_adi"></option>
                                 </template>
                             </select>
-                        </template>
-
-                        <template x-if="errors.has('billing.state')">
-                            <span class="error-message" x-text="errors.get('billing.state')"></span>
+                        <template x-if="errors.has('billing.city_id')">
+                            <span class="error-message" x-text="errors.get('billing.city_id')"></span>
                         </template>
                     </div>
                 </div>
 
+                <!-- District -->
                 <div class="col-md-9">
                     <div class="form-group">
-                        <label for="billing-city">
-                            {{ trans('checkout::attributes.billing.city') }}<span>*</span>
-                        </label>
-
-                        <template x-if="form.billing.country === 'TR' && districts.billing.length">
-                            <select
-                                name="billing[city]"
-                                id="billing-city"
-                                class="form-control arrow-black"
-                                @change="changeBillingCity($event.target.value)"
-                            >
+                        <label for="billing-district-id">İlçe</label>
+                            <select name="billing[district_id]" id="billing-district-id" class="form-control arrow-black" x-model="form.billing.district_id" @change="changeBillingDistrictId($event.target.value)">
                                 <option value="">{{ trans('storefront::checkout.please_select') }}</option>
-
-                                <template x-for="d in districts.billing" :key="d">
-                                    <option :value="d" x-text="d"></option>
+                                <template x-for="d in billingDistricts" :key="d.id">
+                                    <option :value="d.id" x-text="d.name"></option>
                                 </template>
                             </select>
-                        </template>
-
-                        <template x-if="!(form.billing.country === 'TR' && districts.billing.length)">
-                            <input
-                                type="text"
-                                name="billing[city]"
-                                :value="form.billing.city"
-                                id="billing-city"
-                                class="form-control"
-                                @change="changeBillingCity($event.target.value)"
-                            >
-                        </template>
-
-                        <template x-if="errors.has('billing.city')">
-                            <span class="error-message" x-text="errors.get('billing.city')"></span>
+                        <template x-if="errors.has('billing.district_id')">
+                            <span class="error-message" x-text="errors.get('billing.district_id')"></span>
                         </template>
                     </div>
                 </div>
 
-                <!-- Country & Phone last row (pair); Phone not marked required) -->
-                <div class="col-md-9" x-cloak x-show="!singleCountry">
-                    <div class="form-group">
-                        <label for="billing-country">
-                            {{ trans('checkout::attributes.billing.country') }}<span>*</span>
-                        </label>
+                <!-- Phone -->
 
-                        <select
-                            name="billing[country]"
-                            id="billing-country"
-                            class="form-control arrow-black"
-                            @change="changeBillingCountry($event.target.value)"
-                        >
-                            <option value="">{{ trans('storefront::checkout.please_select') }}</option>
-                            
-                            <template x-for="(name, code) in countries" :key="code">
-                                <option :value="code" x-text="name"></option>
-                            </template>
-                        </select>
-
-                        <template x-if="errors.has('billing.country')">
-                            <span class="error-message" x-text="errors.get('billing.country')"></span>
-                        </template>
-                    </div>
-                </div>
-
-                <div :class="singleCountry ? 'col-md-18' : 'col-md-9'">
+                <div class="col-md-9">
                     <div class="form-group">
                         <label for="billing-phone">Telefon</label>
 
                         <input
                             type="text"
+                            name="billing[phone]"
                             id="billing-phone"
                             class="form-control"
-                            x-model="form.customer_phone"
+                            x-model="form.billing.phone"
                         >
                     </div>
                 </div>

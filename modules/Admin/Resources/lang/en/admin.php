@@ -17,6 +17,7 @@ return [
         'id' => 'ID',
         'status' => 'Status',
         'created' => 'Created',
+        'actions' => 'Actions',
         'updated' => 'Updated',
         'date' => 'Date',
         'search_here' => 'Search here...',

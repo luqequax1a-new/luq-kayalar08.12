@@ -18,7 +18,8 @@
             <th data-sort>{{ trans('admin::admin.table.id') }}</th>
             <th>{{ trans('coupon::coupons.table.name') }}</th>
             <th>{{ trans('coupon::coupons.table.code') }}</th>
-            <th>{{ trans('coupon::coupons.table.discount') }}</th>
+            <th class="text-start">{{ trans('coupon::coupons.table.discount') }}</th>
+            <th class="text-start">Geçerlilik</th>
             <th>{{ trans('admin::admin.table.status') }}</th>
             <th data-sort>{{ trans('admin::admin.table.created') }}</th>
         </tr>
@@ -33,7 +34,8 @@
                 { data: 'id', width: '5%' },
                 { data: 'name', name: 'translations.name', orderable: false, defaultContent: '' },
                 { data: 'code' },
-                { data: 'discount', name: 'value' },
+                { data: 'discount', name: 'value', orderable: false, className: 'text-start' },
+                { data: 'validity', name: 'end_date', searchable: false, orderable: false, className: 'text-start' },
                 { data: 'status', name: 'is_active', searchable: false },
                 { data: 'created', name: 'created_at' },
             ],

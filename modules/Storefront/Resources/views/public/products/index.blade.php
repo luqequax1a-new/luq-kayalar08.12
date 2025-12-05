@@ -4,7 +4,88 @@
     @if (request()->has('query'))
         {{ trans('storefront::products.search_results_for') }}: "{{ request('query') }}"
     @else
-        {{ trans('storefront::products.shop') }}
+        {{ isset($categoryMetaTitle) && $categoryMetaTitle ? $categoryMetaTitle : (isset($categoryName) ? $categoryName : trans('storefront::products.shop')) }}
+    @endif
+@endsection
+
+@push('meta')
+    @php(
+        $listBaseDescription = setting('store_tagline') ?: setting('store_name')
+    )
+
+    @if (isset($categoryName))
+        @php(
+            $listTitle = $categoryMetaTitle ?: $categoryName
+        )
+
+        @php(
+            $listDescription = $categoryMetaDescription ?: $listBaseDescription
+        )
+
+        @php(
+            $listLogo = ($categoryBanner ?? $brandBanner ?? null)
+                ?: setting('store_logo')
+                ?: asset('build/assets/image-placeholder.png')
+        )
+
+        <meta name="title" content="{{ $listTitle }}">
+        <meta name="description" content="{{ $listDescription }}">
+
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ $listTitle }}">
+        <meta name="twitter:description" content="{{ $listDescription }}">
+
+        <meta property="og:title" content="{{ $listTitle }}">
+        <meta property="og:description" content="{{ $listDescription }}">
+        <meta property="og:url" content="{{ route('categories.products.index', ['category' => request('category')]) }}">
+        <meta property="og:image" content="{{ $listLogo }}">
+        <meta property="og:locale" content="{{ locale() }}">
+        @foreach (supported_locale_keys() as $code)
+            <meta property="og:locale:alternate" content="{{ $code }}">
+        @endforeach
+
+        <meta name="twitter:image" content="{{ $listLogo }}">
+    @elseif (request()->has('query'))
+        @php(
+            $searchQuery = request('query')
+        )
+
+        @php(
+            $searchTitle = trans('storefront::products.search_results_for') . ': "' . $searchQuery . '"'
+        )
+
+        @php(
+            $searchDescription = ($listBaseDescription ?: setting('store_name')) . ' ' . trans('storefront::products.search_results_for') . ' "' . $searchQuery . '"'
+        )
+
+        @php(
+            $searchLogo = setting('store_logo') ?: asset('build/assets/image-placeholder.png')
+        )
+
+        <meta name="description" content="{{ $searchDescription }}">
+        <meta name="robots" content="noindex,follow">
+
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:title" content="{{ $searchTitle }}">
+        <meta name="twitter:description" content="{{ $searchDescription }}">
+        <meta name="twitter:image" content="{{ $searchLogo }}">
+
+        <meta property="og:type" content="website">
+        <meta property="og:title" content="{{ $searchTitle }}">
+        <meta property="og:description" content="{{ $searchDescription }}">
+        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:image" content="{{ $searchLogo }}">
+        <meta property="og:locale" content="{{ locale() }}">
+        @foreach (supported_locale_keys() as $code)
+            <meta property="og:locale:alternate" content="{{ $code }}">
+        @endforeach
+    @endif
+@endpush
+
+@section('canonical')
+    @if (request()->has('category'))
+        @php($categoryUrl = route('categories.products.index', ['category' => request('category')]))
+        <link rel="canonical" href="{{ \Illuminate\Support\Str::before($categoryUrl, '?') }}">
     @endif
 @endsection
 

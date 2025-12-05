@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sipariş Onayı - Kayalar Manifatura</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+
+  <!-- 📬 E-posta önizleme metni -->
+  <span style="display:none; color:transparent; visibility:hidden; opacity:0; height:0; width:0;">
+    Kayalar Manifatura’dan verdiğiniz sipariş başarıyla oluşturuldu 🎁 Teşekkür ederiz!
+  </span>
+
+  <!-- 🎨 Başlık ve marka -->
+  <header style="text-align: center; margin-bottom: 30px;">
+    <div style="background-color: #2c3e50; color: #ecf0f1; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+      <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Kayalar Manifatura</h1>
+      <p style="margin: 10px 0 0; font-size: 16px; font-style: italic;">🧵 Kaliteli Kumaşın Online Adresi</p>
+    </div>
+  </header>
+
+  <main>
+    <!-- 🎉 Başlık -->
+    <h2 style="text-align: center; color: #2c3e50; font-size: 26px; font-weight: bold;">Siparişiniz Oluşturuldu 🎉</h2>
+
+<p style="text-align: center; color: #c0392b; font-size: 16.5px; font-weight: 500; margin-top: 10px;">
+  Merhaba <strong>{firstname} {lastname}</strong>,<br>
+  🎁 Siparişiniz başarıyla oluşturuldu! Hazırlıklara hemen başlıyoruz.
+</p>
+
+
+    <p style="margin-bottom: 20px;">Aşağıda siparişinize ait detayları bulabilirsiniz. Herhangi bir sorunuz olursa bizimle iletişime geçmekten çekinmeyin.</p>
+
+    <!-- 🧾 Sipariş Bilgileri -->
+    <div style="background-color: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 5px; padding: 20px; margin-bottom: 20px;">
+      <h3 style="color: #2c3e50; margin-top: 0;">🧾 Sipariş Bilgileri</h3>
+      <p><strong>Sipariş Numarası:</strong> {order_name}</p>
+      <p><strong>Tarih:</strong> {date}</p>
+      <p><strong>Ödeme Yöntemi:</strong> {payment}</p>
+    </div>
+
+    <!-- 🧺 Ürünler -->
+    <div>
+      {products}
+    </div>
+
+    <!-- 💳 Sipariş Özeti -->
+    <div style="max-width: 600px; margin: 20px auto; padding: 15px; border: 1px solid #e0e0e0; border-radius: 8px; background: #f9f9f9; font-family: Arial, sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+      <h3 style="font-size: 18px; font-weight: 600; color: #2c3e50; margin-bottom: 10px; text-align: center;">
+        💳 Ödeme Özeti
+      </h3>
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #333;">
+        <tr>
+          <td style="padding: 10px 5px; font-weight: 600;">Ürün Toplamı:</td>
+          <td style="padding: 10px 5px; text-align: right;">{total_products}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 5px; font-weight: 600;">İndirim:</td>
+          <td style="padding: 10px 5px; text-align: right; color: #e74c3c;">-{total_discounts}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 5px; font-weight: 600;">Kargo:</td>
+          <td style="padding: 10px 5px; text-align: right;">{total_shipping}</td>
+        </tr>
+        <tr style="border-top: 2px solid #ddd;">
+          <td style="padding: 10px 5px; font-weight: 700; color: #2c3e50;">Genel Toplam:</td>
+          <td style="padding: 10px 5px; text-align: right; font-weight: 700; color: #27ae60;">{total_paid}</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Responsive -->
+    <style>
+      @media (max-width: 768px) {
+        table {
+          font-size: 12px;
+        }
+        td {
+          padding: 8px 3px;
+        }
+      }
+    </style>
+
+    <!-- 🚚 Teslimat -->
+    <div style="background-color: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 5px; padding: 20px; margin-bottom: 20px;">
+      <h3 style="color: #2c3e50; margin-top: 0; text-align: center;">🚚 Teslimat Adresi</h3>
+      <p style="text-align: center;">{delivery_block_html}</p>
+    </div>
+
+    <!-- 🧾 Fatura -->
+    <div style="background-color: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 5px; padding: 20px; margin-bottom: 20px;">
+      <h3 style="color: #2c3e50; margin-top: 0; text-align: center;">📄 Fatura Bilgileri</h3>
+      <p style="text-align: center;">{invoice_block_html}</p>
+    </div>
+
+    <!-- 🔗 Takip Linki -->
+    <p style="margin-bottom: 20px; text-align: center;">
+      📦 Siparişinizi takip etmek için <a href="{order_link}" style="color: #2980b9; text-decoration: none;">buraya tıklayın</a>.
+    </p>
+
+    <!-- 💬 Yardım -->
+    <p style="margin-bottom: 20px; text-align: center;">
+      💬 Yardıma mı ihtiyacınız var? Bize her zaman ulaşabilirsiniz.
+    </p>
+
+    <!-- 💚 Teşekkür -->
+    <p style="margin-bottom: 20px; text-align: center;">
+      💚 Kayalar Manifatura’yı tercih ettiğiniz için teşekkür ederiz!
+    </p>
+  </main>
+
+  <!-- 👣 Footer -->
+  <footer style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #7f8c8d;">
+    <p>© 2024 Kayalar Manifatura. Tüm hakları saklıdır.</p>
+  </footer>
+</body>
+</html>

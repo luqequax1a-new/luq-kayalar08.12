@@ -42,16 +42,16 @@
     background: var(--color-white);
 }
 
-.sidebar-cart-item {
-    padding: 18px 0;
-    border-bottom: 1px solid #e2e8f0;
+    .sidebar-cart-item {
+        padding: 18px 0;
+        border-bottom: 1px solid #e2e8f0;
 
-    .product-image {
-        border: 1px solid #e2e8f0;
-        width: 60px;
-        min-width: 60px;
-        height: 55px;
-    }
+        .product-image {
+            border: 1px solid #e2e8f0;
+            width: 60px;
+            min-width: 60px;
+            height: 60px;
+        }
 
     &:first-of-type {
         padding-top: 0;
@@ -164,12 +164,17 @@
         }
 
         .product-options {
-            margin: -8px 0 15px;
-
+            margin: -14px 0 14px;
+            
             > li {
                 color: var(--color-black);
                 font-size: 14px;
                 font-weight: var(--font-medium);
+            }
+
+            label {
+                margin-bottom: 0;
+                color: #000;
             }
 
             + .product-options {
@@ -178,6 +183,34 @@
 
             + .product-info-bottom {
                 margin-top: -17px;
+            }
+        }
+    }
+}
+
+@media screen and (max-width: 420px) {
+    .sidebar-cart-item {
+        .product-info {
+            .product-name {
+                font-size: 14px;
+            }
+
+            .product-price {
+                font-size: 14px;
+            }
+
+            .product-info-bottom {
+                .line-summary {
+                    font-size: 12px;
+                }
+            }
+        }
+
+        .number-picker {
+            .input-group-quantity {
+                .input-quantity {
+                    font-size: 11px;
+                }
             }
         }
     }
@@ -198,6 +231,25 @@
     .sidebar-cart-item {
         .product-info {
             margin-left: 10px;
+            .product-name {
+                font-size: 13px;
+            }
+            .product-price {
+                font-size: 13px;
+            }
+            .product-info-bottom {
+                .line-summary {
+                    font-size: 11px;
+                }
+            }
+        }
+
+        .number-picker {
+            .input-group-quantity {
+                .input-quantity {
+                    font-size: 10px;
+                }
+            }
         }
     }
 }

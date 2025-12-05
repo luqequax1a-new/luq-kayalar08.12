@@ -26,6 +26,9 @@ class StoreReviewRequest extends Request
             'rating' => 'required|numeric',
             'reviewer_name' => 'required',
             'comment' => 'required',
+            'images' => 'sometimes|array|max:4',
+            // JPEG, PNG, WEBP, GIF, AVIF ve HEIC formatlarına izin ver
+            'images.*' => 'mimes:jpg,jpeg,png,webp,gif,avif,heic|max:5120',
             'g-recaptcha-response' => ['bail', 'sometimes', 'required', new GoogleRecaptcha()],
         ];
     }

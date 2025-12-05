@@ -46,3 +46,5 @@
         </div>
     </div>
 </div>
+
+@include('admin::partials.selectize_remote')

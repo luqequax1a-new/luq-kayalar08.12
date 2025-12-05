@@ -43,3 +43,15 @@ Route::get('coupons/index/table', [
     'uses' => 'CouponController@table',
     'middleware' => 'can:admin.coupons.index',
 ]);
+
+Route::get('review-coupons', [
+    'as' => 'admin.review_coupons.index',
+    'uses' => 'ReviewCouponController@index',
+    'middleware' => 'can:admin.coupons.index',
+]);
+
+Route::get('review-coupons/index/table', [
+    'as' => 'admin.review_coupons.table',
+    'uses' => 'ReviewCouponController@table',
+    'middleware' => 'can:admin.coupons.index',
+]);

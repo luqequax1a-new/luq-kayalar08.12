@@ -25,6 +25,25 @@
             border-radius: var(--radius-default);
         }
     }
+
+    .whatsapp-cart-btn {
+        margin-top: 10px;
+        background: #1f2937;
+        color: #fff;
+        border-color: #1f2937;
+        border-radius: var(--radius-default);
+        padding: 10px 14px;
+        line-height: 1.2;
+        white-space: normal;
+        max-width: 100%;
+    }
+
+    .whatsapp-cart-btn:hover,
+    .whatsapp-cart-btn:focus {
+        background: #111827;
+        color: #fff;
+        border-color: #111827;
+    }
 }
 
 #paypal-button-container {

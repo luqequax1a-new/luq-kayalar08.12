@@ -7,6 +7,8 @@ use Illuminate\Http\JsonResponse;
 use Modules\Support\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Modules\Product\Entities\Product;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Tag\Entities\TagBadge;
 use Modules\Support\Eloquent\Sluggable;
 use Modules\Support\Eloquent\Translatable;
 use Illuminate\Database\Eloquent\Collection;
@@ -108,6 +110,17 @@ class Tag extends Model
     public function products()
     {
         return $this->belongsToMany(Product::class, 'product_tags');
+    }
+
+
+    /**
+     * Get related tag badges.
+     *
+     * @return HasMany
+     */
+    public function tagBadges(): HasMany
+    {
+        return $this->hasMany(TagBadge::class);
     }
 
 

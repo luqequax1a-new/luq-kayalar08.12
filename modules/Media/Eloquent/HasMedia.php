@@ -71,7 +71,7 @@ trait HasMedia
     public function files(): MorphToMany
     {
         return $this->morphToMany(File::class, 'entity', 'entity_files')
-            ->withPivot(['id', 'zone'])
+            ->withPivot(['id', 'zone', 'alt_text'])
             ->withTimestamps();
     }
 }

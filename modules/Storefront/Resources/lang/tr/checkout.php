@@ -1,0 +1,33 @@
+<?php
+
+return [
+    'checkout' => 'Ödeme',
+    'account_details' => 'Hesap Bilgileri',
+    'add_new_address' => 'Yeni Adres Ekle',
+    'billing_details' => 'Fatura Bilgileri',
+    'default' => 'Varsayılan',
+    'you_must_select_an_address' => 'Bir adres seçmelisiniz.',
+    'please_select' => 'Seçiniz',
+    'create_an_account_by_entering_the_information_below' => 'Aşağıdaki bilgileri girerek bir hesap oluşturun. Mevcut müşterimizseniz sayfanın üstünden giriş yapın.',
+    'shipping_details' => 'Kargo Bilgileri',
+    'special_note_for_delivery' => 'Teslimat için özel not',
+    'payment_method' => 'Ödeme Yöntemi',
+    'shipping_method' => 'Kargo Yöntemi',
+    'no_payment_method' => 'Ödeme yöntemi bulunamadı',
+    'payment_instructions' => 'Ödeme Talimatları',
+    'order_summary' => 'Sipariş Özeti',
+    'subtotal' => 'Sepet Toplamı',
+    'enter_coupon_code' => 'Kupon kodu girin',
+    'apply' => 'Uygula',
+    'coupon' => 'Kupon',
+    'shipping_cost' => 'Kargo',
+    'cod_fee' => 'Kapıda Nakit Ödeme İşlem Ücreti',
+    'cod_fee_suffix' => 'Ücret',
+    'free' => 'Ücretsiz',
+    'total' => 'Toplam',
+    'i_agree_to_the' => 'Şunları kabul ediyorum:',
+    'terms_&_conditions' => 'Şartlar & Koşullar',
+    'place_order' => 'Siparişi Ver',
+    'payment_for_order' => 'Sipariş #:id için ödeme',
+    'remember_about_your_order' => '(1) Siparişinizi hatırlayın'
+];

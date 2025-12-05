@@ -1,5 +1,12 @@
 import "../../components/CartItem";
 import "../../components/LandscapeProducts";
+import registerCartUpsellBox from "../../components/CartUpsellBox";
+
+document.addEventListener("alpine:init", () => {
+    if (window.Alpine && typeof registerCartUpsellBox === "function") {
+        registerCartUpsellBox(window.Alpine);
+    }
+});
 
 Alpine.data("Cart", () => ({
     shippingMethodName: null,
@@ -15,13 +22,33 @@ Alpine.data("Cart", () => ({
     init() {
         Alpine.effect(() => {
             if (this.cartFetched) {
+                try {
+                    console.log("[CART] cartFetched=true, items:", Object.keys(this.$store.cart.cart.items || {}).length);
+                } catch (e) {}
                 this.hideSkeleton();
             }
         });
     },
 
     hideSkeleton() {
-        document.querySelector(".cart-skeleton").remove();
+        const el = document.querySelector(".cart-skeleton");
+
+        if (!el) {
+            try {
+                console.log("[CART] hideSkeleton: .cart-skeleton not found");
+            } catch (e) {}
+            return;
+        }
+
+        try {
+            console.log("[CART] hideSkeleton: removing .cart-skeleton");
+        } catch (e) {}
+
+        if (typeof el.remove === "function") {
+            el.remove();
+        } else if (el.parentNode) {
+            el.parentNode.removeChild(el);
+        }
     },
 
     clearCart() {

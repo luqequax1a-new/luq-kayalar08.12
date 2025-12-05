@@ -44,7 +44,8 @@ class SettingTabs extends Tabs
         $this->group('shipping_methods', trans('setting::settings.tabs.group.shipping_methods'))
             ->add($this->freeShipping())
             ->add($this->localPickup())
-            ->add($this->flatRate());
+            ->add($this->flatRate())
+            ->add($this->smartShipping());
 
         $this->group('payment_methods', trans('setting::settings.tabs.group.payment_methods'))
             ->add($this->paypal())
@@ -257,6 +258,27 @@ class SettingTabs extends Tabs
     }
 
 
+    private function reviewCampaign()
+    {
+        return tap(new Tab('review_campaign', 'Yorum & Kupon Kampanyası'), function (Tab $tab) {
+            $tab->weight(33);
+
+            $tab->fields([
+                'review_request_enabled',
+                'review_request_delay_days',
+                'review_coupon_enabled',
+                'review_coupon_discount_percent',
+                'review_coupon_valid_days',
+                'review_request_email_title',
+                'review_request_email_intro',
+                'review_request_email_promo',
+            ]);
+
+            $tab->view('setting::admin.settings.tabs.review_campaign');
+        });
+    }
+
+
     private function googleRecaptcha()
     {
         return tap(new Tab('google_recaptcha', trans('setting::settings.tabs.google_recaptcha')), function (Tab $tab) {
@@ -335,6 +357,24 @@ class SettingTabs extends Tabs
             $tab->fields(['flat_rate_enabled', 'translatable.flat_rate_label', 'flat_rate_cost']);
 
             $tab->view('setting::admin.settings.tabs.flat_rate');
+        });
+    }
+
+
+    private function smartShipping()
+    {
+        return tap(new Tab('smart_shipping', trans('setting::settings.tabs.smart_shipping')), function (Tab $tab) {
+            $tab->weight(65);
+
+            $tab->fields([
+                'smart_shipping_enabled',
+                'smart_shipping_name',
+                'smart_shipping_description',
+                'smart_shipping_base_rate',
+                'smart_shipping_free_threshold',
+            ]);
+
+            $tab->view('setting::admin.settings.tabs.smart_shipping');
         });
     }
 
@@ -560,7 +600,18 @@ class SettingTabs extends Tabs
         return tap(new Tab('cod', trans('setting::settings.tabs.cod')), function (Tab $tab) {
             $tab->weight(72);
 
-            $tab->fields(['cod_enabled', 'translatable.cod_label', 'translatable.cod_description']);
+            $tab->fields([
+                'cod_enabled',
+                'translatable.cod_label',
+                'translatable.cod_description',
+                'cod_control_enabled',
+                'cod_min_subtotal',
+                'cod_max_subtotal',
+                'cod_fee_mode',
+                'cod_fee_amount',
+                'cod_fee_percent',
+                'cod_fee_display_mode',
+            ]);
 
             $tab->view('setting::admin.settings.tabs.cod');
         });

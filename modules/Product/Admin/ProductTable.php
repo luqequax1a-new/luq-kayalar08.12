@@ -26,7 +26,11 @@ class ProductTable extends AdminTable
         return $this->newTable()
             ->editColumn('thumbnail', function ($product) {
                 return view('admin::partials.table.image', [
-                    'file' => ($product->variant && $product->variant->base_image->id) ? $product->variant->base_image : $product->base_image,
+                    'file' => ($product->base_image && $product->base_image->id)
+                        ? $product->base_image
+                        : (($product->variant && $product->variant->base_image && $product->variant->base_image->id)
+                            ? $product->variant->base_image
+                            : $product->base_image),
                 ]);
             })
             ->editColumn('price', function (Product $product) {
@@ -64,12 +68,33 @@ class ProductTable extends AdminTable
 
                 return $priceHtml;
             })
+            ->addColumn('default_category', function (Product $product) {
+                $name = optional($product->primaryCategory)->name;
+                if (!$name) {
+                    $seo = $product->seoCategory();
+                    $name = $seo ? $seo->name : '';
+                }
+                return e($name);
+            })
             ->editColumn('in_stock', function (Product $product) {
                 $clickable = (bool) $product->manage_stock || ($product->variants && $product->variants->where('manage_stock', true)->count() > 0);
 
                 if ($product->variants && $product->variants->count() > 0) {
                     $activeVariants = $product->variants->where('is_active', true);
                     $count = $activeVariants->count();
+
+                    $noManage = !$product->manage_stock && ($product->variants->where('manage_stock', true)->count() === 0);
+
+                    if ($noManage) {
+                        $inner = "<div class='stock-total'>" . e('Stokta') . "</div>"
+                            . "<div class='stock-count'>" . e("{$count} varyant") . "</div>";
+
+                        if ($clickable) {
+                            return "<a href='#' class='inventory-click' data-id='{$product->id}'>" . $inner . "</a>";
+                        }
+                        return "<div class='stock-cell-disabled'>" . $inner . "</div>";
+                    }
+
                     $sumQty = (float) $activeVariants->sum(function ($v) { return (float) $v->qty; });
 
                     $suffix = $product->saleUnit ? trim($product->saleUnit->getDisplaySuffix()) : '';
@@ -87,7 +112,7 @@ class ProductTable extends AdminTable
                     return "<div class='stock-cell-disabled'>" . $inner . "</div>";
                 }
 
-                $text = e($product->getFormattedStock());
+                $text = !$product->manage_stock ? e('Stokta') : e($product->getFormattedStock());
                 if ($clickable) {
                     return "<a href='#' class='inventory-click' data-id='{$product->id}'>" . $text . "</a>";
                 }
@@ -111,7 +136,7 @@ class ProductTable extends AdminTable
                 $deleteId = $product->id;
 
                 $duplicateForm = "<form method='POST' action='" . e(route('admin.products.duplicate', $product->id)) . "' style='display:inline'>" . csrf_field() . "
-                        <button type='submit' class='action-duplicate m-l-10' title='Copy' aria-label='Copy product' data-toggle='tooltip' style='background:none;border:none;padding:0;'>
+                        <button type='submit' class='action-duplicate' title='Copy' aria-label='Copy product' data-toggle='tooltip' style='background:none;border:none;padding:0;'>
                             <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none'>
                                 <rect x='9' y='9' width='10' height='10' rx='2' stroke='#292D32' stroke-width='1.5'/>
                                 <rect x='5' y='5' width='10' height='10' rx='2' stroke='#292D32' stroke-width='1.5'/>
@@ -119,7 +144,7 @@ class ProductTable extends AdminTable
                         </button>
                     </form>";
 
-                return "<div class='d-flex align-items-center'>
+                return "<div class='actions-grid'>
                     <a href='{$editUrl}' class='action-edit' title='Edit' data-toggle='tooltip'>
                         <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none'>
                             <path d='M4 20H20' stroke='#292D32' stroke-width='1.5' stroke-linecap='round'/>
@@ -127,14 +152,14 @@ class ProductTable extends AdminTable
                             <path d='M14.02 5.98999L6.91 13.1C6.52 13.49 6.15 14.25 6.07 14.81L5.64 17.83C5.45 19.08 6.42 20.04 7.67 19.86L10.69 19.43C11.25 19.35 12.01 18.98 12.41 18.59L19.52 11.48' stroke='#292D32' stroke-width='1.5' stroke-linecap='round'/>
                         </svg>
                     </a>
-                    <a href='{$viewUrl}' target='_blank' class='action-view m-l-10' title='View' data-toggle='tooltip'>
+                    <a href='{$viewUrl}' target='_blank' class='action-view' title='View' data-toggle='tooltip'>
                         <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none'>
                             <path d='M2 12C2 12 5.99997 4 12 4C18 4 22 12 22 12C22 12 18 20 12 20C5.99997 20 2 12 2 12Z' stroke='#292D32' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/>
                             <path d='M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z' stroke='#292D32' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/>
                         </svg>
                     </a>
                     {$duplicateForm}
-                    <a href='#' class='action-delete m-l-10' data-id='{$deleteId}' title='Delete' data-toggle='tooltip' data-confirm>
+                    <a href='#' class='action-delete' data-id='{$deleteId}' title='Delete' data-toggle='tooltip' data-confirm>
                         <svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none'>
                             <path d='M9 3H15' stroke='#292D32' stroke-width='1.5' stroke-linecap='round'/>
                             <path d='M4 7H20' stroke='#292D32' stroke-width='1.5' stroke-linecap='round'/>

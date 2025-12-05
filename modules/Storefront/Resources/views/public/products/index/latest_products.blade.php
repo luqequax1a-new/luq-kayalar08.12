@@ -27,7 +27,9 @@
                                             <span x-text="productName"></span>
                                         </a>
 
-                                        @include('storefront::public.partials.product_rating', ['data' => $latestProduct])
+                                        <template x-if="hasVisibleRating">
+                                            @include('storefront::public.partials.product_rating', ['data' => $latestProduct])
+                                        </template>
 
                                         <div class="product-price" x-html="productPrice"></div>
                                     </div>

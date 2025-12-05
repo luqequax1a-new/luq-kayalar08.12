@@ -32,11 +32,60 @@ class ProductIndexController
         }
 
         return Product::forCard()
+            ->with([
+                'variants',
+                'tags',
+                'tags.tagBadges' => function ($query) {
+                    $query->active();
+                },
+            ])
             ->when($type === 'latest_products', $this->latestProductsCallback($limit))
             ->when($type === 'custom_products', $this->customProductsCallback($settingPrefix))
             ->get()
-            ->map
-            ->clean();
+            ->flatMap(function (Product $product) {
+                $tagBadges = $product->badgeVisualsFor('listing')->map(function ($badge) {
+                    return [
+                        'name' => $badge->name,
+                        'image_url' => $badge->image_url,
+                        'listing_position' => $badge->listing_position,
+                        'detail_position' => $badge->detail_position,
+                        'priority' => $badge->priority,
+                    ];
+                })->values();
+                if ($product->list_variants_separately) {
+                    $variants = $product->variants()->orderBy('position')->get();
+                    $actives = $variants->filter(function ($v) {
+                        return (bool) ($v->is_active ?? false);
+                    });
+
+                    if ($actives->isNotEmpty()) {
+                        return $actives->map(function ($variant) use ($product) {
+                            $p = $product->clean();
+                            // Keep base product name; frontend combines with variant name once
+                            $p['name'] = $product->name;
+                            $p['variant'] = $variant->toArray();
+                            $p['url'] = $variant->url() ?? $product->url();
+                            $p['base_image'] = ($variant->base_image ?? $product->base_image);
+                            $p['base_image_thumb'] = [
+                                'path' => media_variant_url(($variant->base_image ?? $product->base_image), 400)
+                            ];
+                            $p['variant']['base_image_thumb'] = [
+                                'path' => media_variant_url(($variant->base_image ?? $product->base_image), 80)
+                            ];
+                            $p['formatted_price'] = $variant->formatted_price ?? $product->formatted_price;
+                            $p['formatted_price_range'] = null;
+                            $p['tag_badges'] = $tagBadges;
+                            return $p;
+                        });
+                    }
+                }
+                $base = $product->clean();
+                $base['base_image_thumb'] = [
+                    'path' => media_variant_url($product->base_image, 400)
+                ];
+                $base['tag_badges'] = $tagBadges;
+                return collect([$base]);
+            });
     }
 
 
@@ -46,8 +95,51 @@ class ProductIndexController
             ->products()
             ->latest()
             ->forCard()
+            ->with([
+                'variants',
+                'tags',
+                'tags.tagBadges' => function ($query) {
+                    $query->active();
+                },
+            ])
             ->take($limit)
-            ->get();
+            ->get()
+            ->flatMap(function (Product $product) {
+                $tagBadges = $product->badgeVisualsFor('listing')->map(function ($badge) {
+                    return [
+                        'name' => $badge->name,
+                        'image_url' => $badge->image_url,
+                        'listing_position' => $badge->listing_position,
+                        'detail_position' => $badge->detail_position,
+                        'priority' => $badge->priority,
+                    ];
+                })->values();
+                if ($product->list_variants_separately) {
+                    $variants = $product->variants()->orderBy('position')->get();
+                    $actives = $variants->filter(function ($v) {
+                        return (bool) ($v->is_active ?? false);
+                    });
+
+                    if ($actives->isNotEmpty()) {
+                        return $actives->map(function ($variant) use ($product) {
+                            $p = $product->clean();
+                            // Keep base product name; frontend combines with variant name once
+                            $p['name'] = $product->name;
+                            $p['variant'] = $variant->toArray();
+                            $p['url'] = $variant->url() ?? $product->url();
+                            $p['base_image'] = ($variant->base_image ?? $product->base_image);
+                            $p['formatted_price'] = $variant->formatted_price ?? $product->formatted_price;
+                            $p['formatted_price_range'] = null;
+                            $p['tag_badges'] = $tagBadges;
+                            return $p;
+                        });
+                    }
+                }
+                $base = $product->clean();
+                $base['tag_badges'] = $tagBadges;
+
+                return collect([$base]);
+            });
     }
 
 

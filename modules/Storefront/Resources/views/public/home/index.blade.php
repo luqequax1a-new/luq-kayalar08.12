@@ -2,6 +2,10 @@
 
 @section('title', setting('store_tagline'))
 
+@section('canonical')
+    <link rel="canonical" href="{{ \Illuminate\Support\Str::before(route('home'), '?') }}">
+@endsection
+
 @section('content')
     @includeUnless(is_null($slider), 'storefront::public.home.sections.hero')
 
@@ -57,7 +61,39 @@
 @endsection
 
 @push('meta')
-    <meta name="description" content="{{ setting('store_description') }}">
+    @php(
+        $homeDescription = setting('store_description')
+            ?: (setting('store_tagline') ?: setting('store_name'))
+    )
+
+    @php(
+        $homeTitle = setting('store_tagline')
+            ?: setting('store_name')
+    )
+
+    @php(
+        $homeLogo = ($logo ?? null)
+            ?: setting('store_logo')
+            ?: asset('build/assets/image-placeholder.png')
+    )
+
+    <meta name="description" content="{{ $homeDescription }}">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ $homeTitle }}">
+    <meta property="og:description" content="{{ $homeDescription }}">
+    <meta property="og:url" content="{{ url()->current() }}">
+    <meta property="og:image" content="{{ $homeLogo }}">
+    <meta property="og:locale" content="{{ locale() }}">
+
+    @foreach (supported_locale_keys() as $code)
+        <meta property="og:locale:alternate" content="{{ $code }}">
+    @endforeach
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $homeTitle }}">
+    <meta name="twitter:description" content="{{ $homeDescription }}">
+    <meta name="twitter:image" content="{{ $homeLogo }}">
 @endpush
 
 @push('globals')

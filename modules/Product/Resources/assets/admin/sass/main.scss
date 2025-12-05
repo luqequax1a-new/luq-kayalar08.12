@@ -66,40 +66,30 @@
     }
 
     .product-media-grid {
-        display: grid;
-        grid-template-columns: repeat(5, 20%);
-        grid-template-rows: 1fr 1fr;
-        margin: -6px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: flex-start;
     }
 
     .media-grid-item {
-        margin: 4px;
+        position: relative;
+        width: 150px;
+        height: 150px;
+        margin: 0;
         border: 1px solid #d2d6de;
-        border-radius: 8px;
-
-        &:first-child {
-            grid-column-start: 1;
-            grid-column-end: 3;
-            grid-row-start: 1;
-            grid-row-end: 3;
-
-            .image-holder {
-                .remove-image {
-                    right: 5px;
-                    top: 5px;
-
-                    svg {
-                        width: 22px;
-                        height: 22px;
-                    }
-                }
-            }
-        }
+        border-radius: 6px;
+        overflow: hidden;
+        background: #fff;
 
         &.handle {
             .image-holder {
                 cursor: move;
             }
+        }
+
+        .pick-poster-btn {
+            display: inline-block;
         }
 
         &.media-picker {
@@ -108,13 +98,58 @@
         }
 
         .image-holder {
-            height: auto;
+            position: relative;
+            height: 100%;
             width: 100%;
             margin: 0;
-            padding-bottom: 90%;
+            padding-bottom: 0;
             border: none;
             float: none;
+            overflow: hidden;
         }
+    }
+
+    .admin-video-thumb {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 100%;
+        height: 100%;
+        transform: translate(-50%, -50%);
+    }
+
+    .admin-video-thumb img {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 100%;
+        height: 100%;
+        transform: translate(-50%, -50%);
+        object-fit: cover;
+        display: block;
+    }
+
+    .admin-video-play {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 52px;
+        height: 52px;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        background: rgba(0,0,0,0.5);
+    }
+
+    .admin-video-play::before {
+        content: "";
+        position: absolute;
+        left: 20px;
+        top: 16px;
+        width: 0;
+        height: 0;
+        border-left: 16px solid #fff;
+        border-top: 10px solid transparent;
+        border-bottom: 10px solid transparent;
     }
 
     .variants {

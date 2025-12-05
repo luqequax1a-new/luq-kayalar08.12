@@ -75,5 +75,11 @@ return [
             'driver' => 'errorlog',
             'level' => 'debug',
         ],
+
+        'checkout' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/checkout.log'),
+            'level' => 'info',
+        ],
     ],
 ];

@@ -34,6 +34,32 @@ class UpdateSettingRequest extends Request
      */
     public function rules()
     {
+        if ($this->get('context') === 'whatsapp_module') {
+            return [
+                'phone_number' => ['required', 'regex:/^[0-9]{10,15}$/'],
+                'product_button_enabled' => 'nullable|boolean',
+                'product_button_text' => 'required|string|max:191',
+                'product_message_template' => 'nullable|string|max:2000',
+                'cart_button_enabled' => 'nullable|boolean',
+                'cart_button_text' => 'required|string|max:191',
+                'cart_message_template' => 'nullable|string|max:2000',
+            ];
+        }
+
+        if ($this->get('context') === 'review_campaign') {
+            return [
+                'review_request_delay_days' => 'nullable|integer|min:0|max:60',
+                'review_request_second_delay_days' => 'nullable|integer|min:1|max:30',
+                'review_request_enabled' => 'nullable|boolean',
+                'review_coupon_enabled' => 'nullable|boolean',
+                'review_coupon_discount_percent' => 'nullable|integer|min:1|max:90',
+                'review_coupon_valid_days' => 'nullable|integer|min:1|max:365',
+                'review_request_email_title' => 'nullable|string|max:191',
+                'review_request_email_intro' => 'nullable|string|max:2000',
+                'review_request_email_promo' => 'nullable|string|max:2000',
+            ];
+        }
+
         return [
             'supported_countries.*' => ['required', Rule::in(Country::codes())],
             'default_country' => 'required|in_array:supported_countries.*',
@@ -99,6 +125,12 @@ class UpdateSettingRequest extends Request
             'flat_rate_enabled' => 'required|boolean',
             'translatable.flat_rate_label' => 'required_if:flat_rate_enabled,1',
             'flat_rate_cost' => ['required_if:flat_rate_enabled,1', 'nullable', 'numeric'],
+
+            'smart_shipping_enabled' => 'nullable|boolean',
+            'smart_shipping_name' => 'required_if:smart_shipping_enabled,1',
+            'smart_shipping_description' => 'nullable|string',
+            'smart_shipping_base_rate' => ['required_if:smart_shipping_enabled,1', 'nullable', 'numeric', 'min:0'],
+            'smart_shipping_free_threshold' => ['nullable', 'numeric', 'min:0'],
 
             'paypal_enabled' => 'required|boolean',
             'translatable.paypal_label' => 'required_if:paypal_enabled,1',
@@ -206,6 +238,13 @@ class UpdateSettingRequest extends Request
             'cod_enabled' => 'required|boolean',
             'translatable.cod_label' => 'required_if:cod_enabled,1',
             'translatable.cod_description' => 'required_if:cod_enabled,1',
+            'cod_control_enabled' => 'nullable|boolean',
+            'cod_min_subtotal' => ['nullable', 'numeric', 'min:0'],
+            'cod_max_subtotal' => ['nullable', 'numeric', 'min:0'],
+            'cod_fee_mode' => ['nullable', Rule::in(['fixed', 'percent'])],
+            'cod_fee_amount' => ['nullable', 'numeric', 'min:0'],
+            'cod_fee_percent' => ['nullable', 'numeric', 'min:0'],
+            'cod_fee_display_mode' => ['nullable', Rule::in(['add_to_shipping', 'separate_line'])],
 
             'bank_transfer_enabled' => 'required|boolean',
             'translatable.bank_transfer_label' => 'required_if:bank_transfer_enabled,1',
@@ -216,6 +255,17 @@ class UpdateSettingRequest extends Request
             'translatable.check_payment_label' => 'required_if:check_payment_enabled,1',
             'translatable.check_payment_description' => 'required_if:check_payment_enabled,1',
             'translatable.check_payment_instructions' => 'required_if:check_payment_enabled,1',
+
+            'review_request_delay_days' => 'nullable|integer|min:0|max:60',
+            'review_request_second_delay_days' => 'nullable|integer|min:1|max:30',
+            'review_request_enabled' => 'nullable|boolean',
+            'review_coupon_enabled' => 'nullable|boolean',
+            'review_coupon_discount_percent' => 'nullable|integer|min:1|max:90',
+            'review_coupon_valid_days' => 'nullable|integer|min:1|max:365',
+
+            'review_request_email_title' => 'nullable|string|max:191',
+            'review_request_email_intro' => 'nullable|string|max:2000',
+            'review_request_email_promo' => 'nullable|string|max:2000',
         ];
     }
 

@@ -8,13 +8,75 @@ import "../../../components/ProductRating";
 import "../../../components/Pagination";
 import "../../../components/ProductCard";
 
+// Global helper: product header'daki rating'e tıklayınca yorumlar sekmesine git.
+window.openReviewsTab = function openReviewsTab() {
+    try {
+        const tabLink = document.querySelector('.product-details-tab a[href="#reviews"]');
+        if (!tabLink) return;
+
+        // Bootstrap tab'i tetikle
+        tabLink.click();
+
+        // İçerik göründükten sonra yorumlar bölümüne kaydır
+        const target = document.getElementById('reviews');
+        if (!target) return;
+
+        setTimeout(() => {
+            try {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (_) {
+                target.scrollIntoView(true);
+            }
+        }, 150);
+    } catch (_) {}
+};
+
+function handleGalleryVideoTap(e) {
+    const wrapper = e.target.closest('.gallery-preview-item--video');
+    if (!wrapper) return;
+
+    const video = wrapper.querySelector('.product-main-media--video');
+    if (!video) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const isPlaying = !video.paused && !video.ended;
+
+    try {
+        if (isPlaying) {
+            video.pause();
+            wrapper.dataset.playing = 'false';
+        } else {
+            const p = video.play();
+            wrapper.dataset.playing = 'true';
+            if (p && typeof p.catch === 'function') p.catch(() => {});
+
+            video.addEventListener('ended', () => {
+                wrapper.dataset.playing = 'false';
+            }, { once: true });
+        }
+    } catch (_) {}
+
+    try {
+        const wrap = document.querySelector('.product-gallery-preview-wrap');
+        if (wrap && wrap.classList.contains('visible-variation-image')) {
+            wrap.classList.remove('visible-variation-image');
+        }
+    } catch (_) {}
+}
+
+// Desktop + mobile: ekrana dokunma/tıklama ile play/pause toggle
+document.addEventListener('click', handleGalleryVideoTap, false);
+document.addEventListener('touchend', handleGalleryVideoTap, false);
+
 let galleryPreviewSlider;
 let galleryPreviewLightbox;
 let galleryPreviewZoomInstances = [];
 
 Alpine.data(
     "ProductShow",
-    ({ product, variant, reviewCount, avgRating, flashSalePrice }) => ({
+    ({ product, variant, reviewCount, avgRating, ratingBreakdown, flashSalePrice }) => ({
         product: product,
         item: variant || product,
         optionPrices: {},
@@ -28,41 +90,42 @@ Alpine.data(
         reviews: {},
         reviewCount,
         avgRating,
+        // Rating dağılımı (yorum istatistikleri)
+        ratingBreakdown: ratingBreakdown || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
         addingNewReview: false,
         reviewForm: {},
         currentPage: 1,
-        minQty: product.unit_min || 1,
-        stepQty: product.unit_step || 0.5,
-            cartItemForm: {
-                product_id: product.id,
-                qty: Math.max(
-                    Number(product.unit_default_qty || product.unit_min || 1),
-                    Number(product.unit_min || 1)
-                ),
-                variations: {},
-                options: {},
-            },
-        qtyInput: "",
-        isEditingQty: false,
+
+        // Review kuponu için: review request mailinden gelen order_id query parametresi
+        orderIdFromQuery: null,
+        cartItemForm: {
+            product_id: product.id,
+            // Qty başlangıcı tamamen unit modülüne bağlı: önce unit_default_qty, sonra unit_min; yoksa 1
+            qty:
+                (Number(product.unit_default_qty) > 0
+                    ? Number(product.unit_default_qty)
+                    : (Number(product.unit_min) > 0
+                        ? Number(product.unit_min)
+                        : 1)),
+            variations: {},
+            options: {},
+        },
         errors: new Errors(),
 
+        // ---- Qty input state (tamamen unit tabanlı) ----
+        isEditingQty: false,
+        qtyInput: "",
+        // Min qty: sadece unit_min'den okunur; yoksa güvenli default 1
+        minQty: (Number(product.unit_min) > 0 ? Number(product.unit_min) : 1),
+        // Step qty: sadece unit_step'ten okunur; yoksa 1 (adet ürünler için)
+        stepQty: (Number(product.unit_step) > 0 ? Number(product.unit_step) : 1),
+
+        // ---- Review upload state ----
+        isDraggingUpload: false,
+        reviewImages: [],
+        maxReviewPhotos: 4,
+
         get productName() {
-            if (!this.hasAnyVariant) {
-                return this.product.name;
-            }
-
-            const labels = (this.product.variations || [])
-                .map((v) => this.activeVariationValues[v.uid])
-                .filter((l) => !!l);
-
-            if (labels.length > 0) {
-                return `${this.product.name} - ${labels.join(" / ")}`;
-            }
-
-            if (this.item && this.item.name) {
-                return `${this.product.name} - ${this.item.name}`;
-            }
-
             return this.product.name;
         },
 
@@ -223,7 +286,35 @@ Alpine.data(
             return Math.ceil(this.reviews.total / 5);
         },
 
+        getRatingColor(rating) {
+            const r = Number(rating) || 0;
+
+            if (r >= 4.5) {
+                return "#16a34a"; // çok iyi
+            }
+
+            if (r >= 3) {
+                return "#facc15"; // orta
+            }
+
+            if (r > 0) {
+                return "#ef4444"; // düşük
+            }
+
+            return "#9ca3af"; // rating yoksa gri
+        },
+
         init() {
+            // URL'den order_id query parametresini oku (yorum kuponu için gerekecek)
+            try {
+                const params = new URLSearchParams(window.location.search || "");
+                const rawOrderId = params.get("order_id");
+                const parsed = rawOrderId ? parseInt(rawOrderId, 10) : null;
+                this.orderIdFromQuery = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+            } catch (_) {
+                this.orderIdFromQuery = null;
+            }
+
             this.$watch("cartItemForm.options", () => {
                 this.productPriceWithOptionsPrice();
             });
@@ -238,40 +329,10 @@ Alpine.data(
             this.setDescriptionContentHeight();
             this.initUpSellProductsSlider();
             this.initRelatedProductsSlider();
-        },
 
-        beginEditQty(event) {
-            this.isEditingQty = true;
-            this.qtyInput = "";
-        },
-
-        onQtyInput(event) {
-            this.qtyInput = event.target.value;
-        },
-
-        commitEditQty() {
-            this.isEditingQty = false;
-            const raw = (this.qtyInput || "").trim();
-            if (raw === "") return;
-            const val = Number(raw.replace(",", "."));
-            if (Number.isNaN(val)) return;
-            this.setQuantityManual(val);
-        },
-
-        setQuantityManual(val) {
-            let v = Number(val);
-            if (Number.isNaN(v)) return;
-            const min = this.minQty || 1;
-            if (v < min) v = min;
-            if (this.exceedsMaxStock(v)) {
-                this.cartItemForm.qty = this.item.qty;
-                return;
-            }
-            if (this.product.unit_decimal) {
-                this.cartItemForm.qty = Number(v.toFixed(2));
-                return;
-            }
-            this.cartItemForm.qty = Math.round(v);
+            // Yorum görselleri için lightbox başlat
+            this.initReviewLightbox();
+            this.updateBadgeVisibilityForActiveSlide();
         },
 
         syncWishlist() {
@@ -289,35 +350,27 @@ Alpine.data(
         },
 
         initGalleryPreviewSlider() {
-            const mediaCount = this.getMediaCount();
-            const config = {
-                modules: [Manipulation],
+            const slider = new Swiper(".product-gallery-preview", {
+                modules: [Manipulation, Navigation, Thumbs],
                 slidesPerView: 1,
-                allowTouchMove: false,
-            };
-
-            if (mediaCount > 1) {
-                config.modules.push(Navigation, Thumbs, Pagination);
-                config.navigation = {
+                // Masaüstünde oklarla, mobilde parmakla kaydırma
+                allowTouchMove: this.isMobileDevice(),
+                navigation: {
                     nextEl: ".swiper-button-next",
                     prevEl: ".swiper-button-prev",
-                };
-                config.thumbs = {
+                },
+                thumbs: {
                     swiper: this.initGalleryThumbnailSlider(),
-                };
-                config.pagination = {
-                    el: ".product-gallery-pagination",
-                    clickable: true,
-                };
-            }
+                },
+            });
+            slider.on("slideChange", () => {
+                this.updateBadgeVisibilityForActiveSlide();
+            });
 
-            return new Swiper(".product-gallery-preview", config);
+            return slider;
         },
 
         initGalleryThumbnailSlider() {
-            const mediaCount = this.getMediaCount();
-            if (mediaCount <= 1) return null;
-
             return new Swiper(".product-gallery-thumbnail", {
                 modules: [Manipulation, Navigation],
                 slidesPerView: 4,
@@ -346,57 +399,143 @@ Alpine.data(
         },
 
         updateGallerySlider() {
+            if (!galleryPreviewSlider || !galleryPreviewSlider.thumbs || !galleryPreviewSlider.thumbs.swiper) {
+                return;
+            }
+
             this.removeAllGallerySlides();
 
             // If product and variant has not media
             if (this.product.media.length === 0 && !this.hasAnyMedia) {
                 this.addGalleryEmptySlide();
             } else {
+                // 1) Sadece image slidelarını kur
                 this.addGallerySlides();
+                // 2) Videoları 3. kanal gibi en sona ekle
+                this.appendVideoSlides();
             }
 
             this.addGalleryEventListeners();
+            this.updateBadgeVisibilityForActiveSlide();
         },
 
         addGallerySlides() {
+            // Swiper yoksa devam etme
+            if (
+                !galleryPreviewSlider ||
+                !galleryPreviewSlider.thumbs ||
+                !galleryPreviewSlider.thumbs.swiper
+            ) {
+                return;
+            }
+
             const galleryPreviewSlides = [];
             const galleryThumbnailSlides = [];
 
-            // Merge variant and product media
-            [...this.item.media, ...this.product.media].forEach(({ path }) => {
-                galleryPreviewSlides.unshift(this.galleryPreviewSlide(path));
+            const variantMedia = Array.isArray(this.item.media) ? this.item.media : [];
+            const productMedia = Array.isArray(this.product.media) ? this.product.media : [];
+
+            // DEFAULT: sadece item.media + product.media (sadece IMAGES)
+            const allMedia = [...variantMedia, ...productMedia];
+
+            const seen = new Set();
+
+            allMedia.forEach((m) => {
+                if (!m) return;
+
+                // Video'ları burada tamamen yok sayıyoruz
+                if (m.type === "video") {
+                    return;
+                }
+
+                const path = m.path;
+                if (!path) return;
+
+                if (seen.has(path)) return;
+                seen.add(path);
+
+                galleryPreviewSlides.unshift(
+                    this.galleryPreviewSlide(path)
+                );
                 galleryThumbnailSlides.unshift(
                     this.galleryThumbnailSlide(path)
                 );
             });
 
-            // Add gallery preview and thumbnail slides
             galleryPreviewSlider.addSlide(0, galleryPreviewSlides);
-            if (galleryPreviewSlider.thumbs && galleryPreviewSlider.thumbs.swiper) {
-                galleryPreviewSlider.thumbs.swiper.addSlide(0, galleryThumbnailSlides);
+            galleryPreviewSlider.thumbs.swiper.addSlide(0, galleryThumbnailSlides);
+
+            galleryPreviewSlider.slideTo(0);
+            galleryPreviewSlider.thumbs.swiper.slideTo(0);
+        },
+
+        appendVideoSlides() {
+            if (
+                !galleryPreviewSlider ||
+                !galleryPreviewSlider.thumbs ||
+                !galleryPreviewSlider.thumbs.swiper
+            ) {
+                return;
             }
 
-            // Set the first slide as active
-            galleryPreviewSlider.slideTo(0);
-            if (galleryPreviewSlider.thumbs && galleryPreviewSlider.thumbs.swiper) {
-                galleryPreviewSlider.thumbs.swiper.slideTo(0);
+            const rawVideos = Array.isArray(this.product.product_media)
+                ? this.product.product_media
+                : (Array.isArray(this.product.productMedia)
+                    ? this.product.productMedia
+                    : []);
+
+            if (!rawVideos.length) {
+                return;
             }
+
+            rawVideos
+                .filter((v) => v && v.type === "video" && v.path)
+                .forEach((v) => {
+                    const videoPath = v.path;
+
+                    const poster =
+                        v.poster ||
+                        v.thumb ||
+                        this.item?.base_image?.path ||
+                        this.product?.base_image?.path ||
+                        `${FleetCart.baseUrl}/build/assets/image-placeholder.png`;
+
+                    const previewSlide = this.galleryPreviewVideoSlide(videoPath, poster);
+                    const thumbSlide = this.galleryThumbnailVideoSlide(poster);
+
+                    const lastIndex = galleryPreviewSlider.slides.length;
+
+                    galleryPreviewSlider.addSlide(lastIndex, previewSlide);
+                    galleryPreviewSlider.thumbs.swiper.addSlide(
+                        galleryPreviewSlider.thumbs.swiper.slides.length,
+                        thumbSlide
+                    );
+                });
+
+            galleryPreviewSlider.update();
+            galleryPreviewSlider.thumbs.swiper.update();
         },
 
         addGalleryEmptySlide() {
             const filePath = `${FleetCart.baseUrl}/build/assets/image-placeholder.png`;
 
-            galleryPreviewSlider.addSlide(0, this.galleryPreviewEmptySlide(filePath));
-            if (galleryPreviewSlider.thumbs && galleryPreviewSlider.thumbs.swiper) {
-                galleryPreviewSlider.thumbs.swiper.addSlide(0, this.galleryThumbnailEmptySlide(filePath));
-            }
+            galleryPreviewSlider.addSlide(
+                0,
+                this.galleryPreviewEmptySlide(filePath)
+            );
+            galleryPreviewSlider.thumbs.swiper.addSlide(
+                0,
+                this.galleryThumbnailEmptySlide(filePath)
+            );
         },
 
         removeAllGallerySlides() {
-            galleryPreviewSlider.removeAllSlides();
-            if (galleryPreviewSlider.thumbs && galleryPreviewSlider.thumbs.swiper) {
-                galleryPreviewSlider.thumbs.swiper.removeAllSlides();
+            if (!galleryPreviewSlider || !galleryPreviewSlider.thumbs || !galleryPreviewSlider.thumbs.swiper) {
+                return;
             }
+
+            galleryPreviewSlider.removeAllSlides();
+            galleryPreviewSlider.thumbs.swiper.removeAllSlides();
         },
 
         addGalleryEventListeners() {
@@ -406,9 +545,35 @@ Alpine.data(
             });
         },
 
+        updateBadgeVisibilityForActiveSlide() {
+            try {
+                const wrap = document.querySelector(".product-gallery-preview-wrap");
+                if (!wrap || !galleryPreviewSlider || !galleryPreviewSlider.slides) {
+                    return;
+                }
+
+                const activeIndex = galleryPreviewSlider.activeIndex || 0;
+                const activeSlide = galleryPreviewSlider.slides[activeIndex];
+                if (!activeSlide) {
+                    wrap.classList.remove("is-video-active");
+                    return;
+                }
+
+                const isVideo = !!activeSlide.querySelector(".gallery-preview-item--video");
+
+                if (isVideo) {
+                    wrap.classList.add("is-video-active");
+                } else {
+                    wrap.classList.remove("is-video-active");
+                }
+            } catch (_) {}
+        },
+
         initGalleryPreviewZoom() {
+            // Mobilde Drift zoom'u tamamen devre dışı bırak;
+            // kullanıcı sadece yana kaydırarak görsel/video değiştirebilsin.
             if (this.isMobileDevice()) {
-                this.initGalleryPreviewMobileZoom();
+                this.destroyGalleryPreviewZoomInstances();
 
                 return;
             }
@@ -472,34 +637,6 @@ Alpine.data(
             }
         },
 
-        openReviewsTab() {
-            const reviewsTabLink = document.querySelector("a[href='#reviews'][data-bs-toggle='tab']");
-            if (reviewsTabLink) {
-                reviewsTabLink.click();
-            }
-
-            const target = document.getElementById("reviews");
-            if (target) {
-                target.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-
-            this.$nextTick(() => {
-                if (!this.emptyReviews) {
-                    const firstReview = document.querySelector("#reviews .user-review");
-                    if (firstReview) {
-                        firstReview.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }
-                }
-            });
-        },
-
-        getMediaCount() {
-            if (this.hasAnyVariant) {
-                return (this.item.media?.length || 0) + (this.product.media?.length || 0);
-            }
-            return this.product.media?.length || 0;
-        },
-
         galleryPreviewSlide(filePath) {
             return `
                 <div class="swiper-slide">
@@ -522,6 +659,40 @@ Alpine.data(
                     <div class="gallery-thumbnail-slide">
                         <div class="gallery-thumbnail-item">
                             <img src="${filePath}" alt="${this.productName}">
+                        </div>
+                    </div>
+                </div>
+            `;
+        },
+
+        galleryPreviewVideoSlide(videoPath, posterPath) {
+            return `
+                <div class="swiper-slide">
+                    <div class="gallery-preview-slide">
+                        <div class="gallery-preview-item gallery-preview-item--video" data-media-type="video">
+                            <video
+                                class="product-main-media product-main-media--video"
+                                controls
+                                playsinline
+                                preload="metadata"
+                                poster="${posterPath}"
+                            >
+                                <source src="${videoPath}" type="video/mp4">
+                            </video>
+                            <span class="fc-video-play-icon">▶</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        },
+
+        galleryThumbnailVideoSlide(posterPath) {
+            return `
+                <div class="swiper-slide">
+                    <div class="gallery-thumbnail-slide">
+                        <div class="gallery-thumbnail-item gallery-thumbnail-item--video">
+                            <img src="${posterPath}" alt="${this.productName}">
+                            <span class="fc-video-play-icon">▶</span>
                         </div>
                     </div>
                 </div>
@@ -745,10 +916,7 @@ Alpine.data(
                 base_image: [],
             };
 
-            this.cartItemForm.qty = Math.max(
-                Number(this.product.unit_default_qty || this.minQty),
-                Number(this.minQty)
-            );
+            this.cartItemForm.qty = 1;
         },
 
         setVariantSlug() {
@@ -764,12 +932,6 @@ Alpine.data(
             this.setVariant();
             this.setVariantSlug();
             this.updateGallerySlider();
-            const def = Math.max(
-                Number(this.product.unit_default_qty || this.minQty),
-                Number(this.minQty)
-            );
-            this.cartItemForm.qty = this.normalizeQty(def);
-            this.reduceToMaxQuantity();
         },
 
         updateSelectTypeOptionValue(optionId, event) {
@@ -883,15 +1045,40 @@ Alpine.data(
                 .matches;
         },
 
-        updateQuantity(qty) {
-            const value = this.normalizeQty(qty);
+        // Unit tabanlı qty normalizasyonu
+        normalizeQty(raw) {
+            let v;
 
-            if (this.exceedsMaxStock(value)) {
-                this.cartItemForm.qty = this.item.qty;
-
-                return;
+            if (typeof raw === "number") {
+                v = raw;
+            } else {
+                const str = String(raw ?? "").trim().replace(",", ".");
+                v = parseFloat(str);
             }
 
+            if (!isFinite(v) || v <= 0) {
+                v = this.minQty || 1;
+            }
+
+            if (typeof this.minQty === "number") {
+                v = Math.max(v, this.minQty);
+            }
+
+            if (typeof this.maxQuantity === "number" && this.maxQuantity > 0) {
+                v = Math.min(v, this.maxQuantity);
+            }
+
+            const step = this.stepQty || 0;
+            if (step > 0) {
+                v = Math.round(v / step) * step;
+                v = Number(v.toFixed(3));
+            }
+
+            return v;
+        },
+
+        updateQuantity(nextQty) {
+            const value = this.normalizeQty(nextQty);
             this.cartItemForm.qty = value;
         },
 
@@ -901,25 +1088,50 @@ Alpine.data(
 
         reduceToMaxQuantity() {
             if (this.doesManageStock && this.cartItemForm.qty > this.item.qty) {
-                this.cartItemForm.qty = this.item.qty || this.minQty;
+                this.cartItemForm.qty = this.item.qty || 1;
             }
         },
 
-        normalizeQty(value) {
-            let v = Number((value + '').replace(',', '.')) || 0;
-            const min = this.minQty || 1;
-            const step = this.stepQty || 1;
+        beginEditQty(event) {
+            this.isEditingQty = true;
+            // Input'a tıklayınca alan boşalsın, kullanıcı baştan yazsın
+            this.qtyInput = "";
+        },
 
+        commitEditQty() {
+            this.isEditingQty = false;
+
+            const raw = (this.qtyInput || "").trim();
+            if (raw === "") return;
+
+            const val = Number(raw.replace(",", "."));
+            if (Number.isNaN(val)) return;
+
+            this.setQuantityManual(val);
+        },
+
+        setQuantityManual(val) {
+            let v = Number(val);
+            if (Number.isNaN(v)) return;
+
+            const min = this.minQty || 1;
             if (v < min) v = min;
 
-            const steps = Math.round((v - min) / step);
-            v = min + steps * step;
-
-            if (this.product.unit_decimal) {
-                return Number(v.toFixed(2));
+            if (this.exceedsMaxStock(v)) {
+                this.cartItemForm.qty = this.item.qty;
+                return;
             }
 
-            return Math.round(v);
+            if (this.product.unit_decimal) {
+                this.cartItemForm.qty = Number(v.toFixed(2));
+                return;
+            }
+
+            this.cartItemForm.qty = Math.round(v);
+        },
+
+        onQtyInput(event) {
+            this.qtyInput = event.target.value;
         },
 
         addToCart() {
@@ -935,11 +1147,6 @@ Alpine.data(
                 .then((response) => {
                     this.$store.cart.updateCart(response.data);
                     this.$store.layout.openSidebarCart();
-                    const def = Math.max(
-                        Number(this.product.unit_default_qty || this.minQty),
-                        Number(this.minQty)
-                    );
-                    this.cartItemForm.qty = this.normalizeQty(def);
                 })
                 .catch(({ response }) => {
                     if (response.status === 422) {
@@ -957,6 +1164,26 @@ Alpine.data(
             this.showDescriptionContent = !this.showDescriptionContent;
         },
 
+        initReviewLightbox() {
+            try {
+                if (this.reviewLightbox && typeof this.reviewLightbox.destroy === "function") {
+                    this.reviewLightbox.destroy();
+                }
+            } catch (_) {}
+
+            this.$nextTick(() => {
+                try {
+                    this.reviewLightbox = GLightbox({
+                        selector: ".review-image-lightbox",
+                        touchNavigation: true,
+                        preload: false,
+                        openEffect: "fade",
+                        closeEffect: "fade",
+                    });
+                } catch (_) {}
+            });
+        },
+
         async fetchReviews() {
             this.fetchingReviews = true;
 
@@ -966,6 +1193,7 @@ Alpine.data(
                 );
 
                 this.reviews = response.data;
+                this.initReviewLightbox();
             } catch (error) {
                 notify(error.response.data.message);
             } finally {
@@ -973,41 +1201,136 @@ Alpine.data(
             }
         },
 
-        addNewReview() {
+        addNewReview(event) {
             this.addingNewReview = true;
 
+            const formEl = event?.target || null;
+            const formData = new FormData();
+
+            formData.append("rating", this.reviewForm.rating || "");
+            formData.append("reviewer_name", this.reviewForm.reviewer_name || "");
+            formData.append("comment", this.reviewForm.comment || "");
+
+            // Review kuponu için order_id bilgisini de ilet
+            if (this.orderIdFromQuery) {
+                formData.append("order_id", this.orderIdFromQuery);
+            }
+
+            this.reviewImages.forEach(({ file }) => {
+                if (file) {
+                    formData.append("images[]", file);
+                }
+            });
+
+            if (window.grecaptcha) {
+                formData.append("g-recaptcha-response", grecaptcha.getResponse());
+            }
+
             axios
-                .post(`/products/${this.product.id}/reviews`, {
-                    ...this.reviewForm,
-                    ...(window.grecaptcha && {
-                        "g-recaptcha-response": grecaptcha.getResponse(),
-                    }),
+                .post(`/products/${this.product.id}/reviews`, formData, {
+                    headers: { "Content-Type": "multipart/form-data" },
                 })
                 .then((response) => {
-                    this.reviewForm = {};
-                    this.reviews.total++;
-                    this.reviews.data.unshift(response.data);
+                    const newReview = response.data;
+
+                    this.reviews.total = (this.reviews.total || 0) + 1;
+                    this.reviews.data = Array.isArray(this.reviews.data)
+                        ? [newReview, ...this.reviews.data]
+                        : [newReview];
 
                     notify(trans("storefront::product.review_submitted"));
 
                     this.errors.reset();
+                    this.reviewForm.rating = null;
+                    this.reviewForm.reviewer_name = "";
+                    this.reviewForm.comment = "";
+
+                    if (formEl && typeof formEl.reset === "function") {
+                        formEl.reset();
+                    }
+
+                    // URL.revokeObjectURL ile oluşturulan tüm preview'leri temizle
+                    this.reviewImages.forEach((item) => {
+                        if (item.preview) {
+                            try { URL.revokeObjectURL(item.preview); } catch (_) {}
+                        }
+                    });
+
+                    this.reviewImages = [];
                 })
-                .catch(({ response }) => {
-                    if (response.status === 422) {
+                .catch((error) => {
+                    const response = error.response;
+
+                    if (response && response.status === 422) {
                         this.errors.record(response.data.errors);
 
                         return;
                     }
 
-                    notify(response.data.message);
+                    if (response && response.data && response.data.message) {
+                        notify(response.data.message);
+                    }
                 })
                 .finally(() => {
                     this.addingNewReview = false;
 
                     if (window.grecaptcha) {
-                        grecaptcha.reset();
+                        try { grecaptcha.reset(); } catch (_) {}
                     }
                 });
+        },
+
+        openReviewFilePicker() {
+            if (this.$refs.reviewFileInput) {
+                this.$refs.reviewFileInput.click();
+            }
+        },
+
+        onSelectReviewImages(event) {
+            const input = event.target;
+            const files = Array.from(input.files || []);
+
+            if (!files.length) {
+                return;
+            }
+
+            const allowed = new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]);
+            const existing = this.reviewImages.slice();
+            const remainingSlots = Math.max(0, this.maxReviewPhotos - existing.length);
+
+            const selected = files
+                .filter((f) => allowed.has(f.type))
+                .slice(0, remainingSlots)
+                .map((file) => ({
+                    file,
+                    preview: URL.createObjectURL(file),
+                }));
+
+            this.reviewImages = existing.concat(selected);
+
+            if (input) {
+                input.value = "";
+            }
+        },
+
+        onDropReviewImages(event) {
+            this.isDraggingUpload = false;
+
+            const dt = event.dataTransfer;
+            if (!dt || !dt.files) return;
+
+            const pseudoEvent = { target: { files: dt.files } };
+            this.onSelectReviewImages(pseudoEvent);
+        },
+
+        removeReviewImage(index) {
+            const item = this.reviewImages[index];
+
+            if (item && item.preview) {
+                try { URL.revokeObjectURL(item.preview); } catch (_) {}
+            }
+
+            this.reviewImages.splice(index, 1);
         },
 
         changePage(page) {

@@ -234,8 +234,15 @@ async function submit({ submissionType }) {
         }
 
         if (!form.id) {
-            resetForm();
-
+            if (data && data.redirect_url) {
+                window.location.href = data.redirect_url;
+                return;
+            }
+            if (data && data.product_id) {
+                window.location.href = `/admin/products/${data.product_id}/edit`;
+                return;
+            }
+            window.location.href = "/admin/products";
             return;
         }
 

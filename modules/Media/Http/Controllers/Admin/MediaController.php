@@ -47,7 +47,7 @@ class MediaController
         $path = Storage::putFile('media', $file);
         
 
-        return File::create([
+        $record = File::create([
             'user_id' => auth()->id(),
             'disk' => config('filesystems.default'),
             'filename' => substr($file->getClientOriginalName(), 0, 255),
@@ -56,6 +56,14 @@ class MediaController
             'mime' => $file->getClientMimeType(),
             'size' => $file->getSize(),
         ]);
+
+        dispatch(new \Modules\Media\Jobs\GenerateResponsiveImagesForMedia($record->id));
+        $mime = strtolower((string) $record->mime);
+        if (substr($mime, 0, 6) === 'video/') {
+            dispatch(new \Modules\Media\Jobs\OptimizeVideoForMedia($record->id));
+        }
+
+        return $record;
     }
 
 

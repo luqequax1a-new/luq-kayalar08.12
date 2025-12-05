@@ -1,4 +1,5 @@
 // stores
+import "./app";
 import "./stores/cartStore";
 import "./stores/wishlistStore";
 import "./stores/compareStore";
@@ -12,3 +13,9 @@ import "./layouts/CookieBar";
 import "./layouts/NewsletterSubscription";
 import "./layouts/NewsletterPopup";
 import "./layouts/ScrollToTop";
+
+document.addEventListener("DOMContentLoaded", () => {
+    if (window.Alpine && typeof window.Alpine.start === "function") {
+        window.Alpine.start();
+    }
+});

@@ -13,6 +13,9 @@ body {
 
     &.ltr {
         direction: ltr;
+        ul, ol {
+            padding-left: 0 !important;
+        }
     }
 
     &.rtl {

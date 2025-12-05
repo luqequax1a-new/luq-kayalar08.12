@@ -19,6 +19,7 @@
         "ext-gd": "*",
         "cache/predis-adapter": "^1.0",
         "doctrine/dbal": "^4.0",
+        "geliver/sdk": "1.0",
         "guzzlehttp/guzzle": "^7.2",
         "jackiedo/dotenv-editor": "dev-master",
         "laravel/framework": "^11.0",
@@ -48,8 +49,12 @@
         "psr-4": {
             "FleetCart\\": "app/",
             "Modules\\": "modules/",
-            "Database\\Seeders\\": "database/seeders/"
-        }
+            "Database\\Seeders\\": "database/seeders/",
+            "Geliver\\": "vendor/geliver/sdk/src/"
+        },
+        "classmap": [
+            "vendor/geliver/sdk/src"
+        ]
     },
     "scripts": {
         "post-root-package-install": [

@@ -20,11 +20,9 @@ class OrderStatusController
     {
         $this->adjustStock($order);
 
-        $order->update(['status' => request('status')]);
+        $order->transitionTo(request('status'));
 
         $message = trans('order::messages.status_updated');
-
-        event(new OrderStatusChanged($order));
 
         return $message;
     }

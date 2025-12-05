@@ -1,0 +1,11 @@
+{
+    "name": "Geliver",
+    "alias": "geliver",
+    "priority": 120,
+    "providers": [
+        "Modules\\Geliver\\Providers\\GeliverServiceProvider"
+    ],
+    "files": [],
+    "requires": []
+}
+

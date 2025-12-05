@@ -44,4 +44,16 @@ return [
         'channel' => env('PAYTM_CHANNEL'),
         'industry_type' => env('PAYTM_INDUSTRY_TYPE'),
     ],
+
+    'geliver' => [
+        'token' => env('GELIVER_API_TOKEN'),
+        'sender_address_id' => env('GELIVER_SENDER_ADDRESS_ID'),
+        'default_length' => env('GELIVER_DEFAULT_LENGTH', 10.0),
+        'default_width' => env('GELIVER_DEFAULT_WIDTH', 10.0),
+        'default_height' => env('GELIVER_DEFAULT_HEIGHT', 10.0),
+        'default_weight' => env('GELIVER_DEFAULT_WEIGHT', 1.0),
+        'test_mode' => env('GELIVER_TEST_MODE', true),
+        'webhook_secret' => env('GELIVER_WEBHOOK_SECRET'),
+        'cacert' => env('GELIVER_CACERT_PATH'),
+    ],
 ];

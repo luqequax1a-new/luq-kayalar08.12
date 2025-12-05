@@ -61,6 +61,14 @@ class CartItem implements JsonSerializable
 
 
     /**
+     * Optional upsell metadata for the cart item.
+     *
+     * @var array|null
+     */
+    public $upsell;
+
+
+    /**
      * @param $item
      */
     public function __construct($item)
@@ -72,6 +80,7 @@ class CartItem implements JsonSerializable
         $this->item = $item->attributes['item'];
         $this->variations = $item->attributes['variations'];
         $this->options = $item->attributes['options'];
+        $this->upsell = $item->attributes['upsell'] ?? null;
     }
 
 
@@ -169,6 +178,7 @@ class CartItem implements JsonSerializable
             'options' => $this->options->isNotEmpty() ? $this->options->keyBy('position') : new stdClass(),
             'unitPrice' => $this->unitPrice(),
             'total' => $this->totalPrice(),
+            'upsell' => $this->upsell ?: new stdClass(),
         ];
     }
 
@@ -180,6 +190,11 @@ class CartItem implements JsonSerializable
      */
     public function unitPrice()
     {
+        if (is_array($this->upsell) && isset($this->upsell['unit_price'])) {
+            return Money::inDefaultCurrency((float) $this->upsell['unit_price'])
+                ->add($this->optionsPrice());
+        }
+
         return $this->item->selling_price->add($this->optionsPrice());
     }
 

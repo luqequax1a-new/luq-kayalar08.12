@@ -51,6 +51,7 @@
                 { data: 'id', width: '5%' },
                 { data: 'thumbnail', orderable: false, searchable: false, width: '10%' },
                 { data: 'name', name: 'translations.name', class: 'name', orderable: false, defaultContent: '' },
+                { data: 'default_category', orderable: false, searchable: false },
                 { data: 'price', searchable: false },
                 { data: 'in_stock', name: 'in_stock', searchable: false, className: 'stock-cell' },
                 { data: 'status', name: 'is_active', searchable: false, orderable: false },
@@ -85,35 +86,8 @@
             const confirmationModal = $('#confirmation-modal');
             confirmationModal.modal('show');
             const body = confirmationModal.find('.modal-body');
-            const form = confirmationModal.find('form');
 
             body.find('.fc-delete-redirect').remove();
-
-            const ui = `
-                <div class="fc-delete-redirect">
-                    <div class="m-t-15">
-                        <div class="text-bold">Bu ürünü silmek istediğinize emin misiniz?</div>
-                        <div class="text-red">Bu işlem geri alınamaz. Ürün katalogdan tamamen kaldırılacaktır.</div>
-                        <div class="m-t-10">İsterseniz eski URL'yi başka bir sayfaya yönlendirebilirsiniz.</div>
-                    </div>
-                    <hr>
-                    <div class="m-t-10"><strong>Yönlendirme seçeneği</strong></div>
-                    <div class="m-t-5">
-                        <label class="block"><input type="radio" name="redirect_type" value="none" checked> Yönlendirme yapma (410)</label>
-                        <label class="block"><input type="radio" name="redirect_type" value="home"> Anasayfaya yönlendir</label>
-                        <label class="block"><input type="radio" name="redirect_type" value="product"> Başka bir ürüne yönlendir (ID)</label>
-                        <input type="number" class="form-control m-t-5" name="redirect_target_id" placeholder="Hedef ürün ID">
-                        <label class="block m-t-10"><input type="radio" name="redirect_type" value="custom"> Özel URL'ye yönlendir</label>
-                        <input type="text" class="form-control m-t-5" name="redirect_target_url" placeholder="https://...">
-                    </div>
-                    <div class="m-t-10"><strong>Status Code</strong></div>
-                    <div class="m-t-5">
-                        <label class="inline-block m-r-10"><input type="radio" name="redirect_status" value="301" checked> 301</label>
-                        <label class="inline-block m-r-10"><input type="radio" name="redirect_status" value="302"> 302</label>
-                    </div>
-                </div>`;
-
-            body.append(ui);
 
             confirmationModal
                 .modal('show')
@@ -123,22 +97,8 @@
                     ev.preventDefault();
                     confirmationModal.modal('hide');
 
-                    const redirectType = form.find('input[name="redirect_type"]:checked').val();
-                    const statusCode = form.find('input[name="redirect_status"]:checked').val();
-                    const targetId = form.find('input[name="redirect_target_id"]').val();
-                    const targetUrl = form.find('input[name="redirect_target_url"]').val();
-
                     axios
-                        .delete(`${FleetCart.baseUrl}/admin/products/${id}`, {
-                            data: {
-                                redirect: {
-                                    type: redirectType,
-                                    status_code: statusCode,
-                                    target_id: targetId || null,
-                                    target_url: targetUrl || null,
-                                }
-                            }
-                        })
+                        .delete(`${FleetCart.baseUrl}/admin/products/${id}`)
                         .then(() => {
                             window.location.reload();
                         })
@@ -175,6 +135,10 @@
         }
         function buildItems(product) {
             const unitSuffix = product.sale_unit_id ? (product.unit_suffix || '') : '';
+            const allowDecimal = !!(product.unit_decimal);
+            const unitMin = Number(product.unit_min ?? 0);
+            const unitStep = allowDecimal ? Number(product.unit_step || 0.01) : 1;
+            const inputMode = allowDecimal ? 'decimal' : 'numeric';
             const items = [];
             if (product.variants && product.variants.length > 0) {
                 product.variants.forEach(v => {
@@ -184,7 +148,7 @@
                             <div class="inv-media"><img src="${img}" alt="" /></div>
                             <div class="inv-name">${_.escape(v.name || '')}</div>
                             <div class="inv-input-wrap">
-                                <input type="number" step="0.5" min="0" class="inv-input variant-qty-input" data-id="${v.id}" value="${Number(v.qty || 0)}" ${unitSuffix ? `data-suffix="${unitSuffix}"` : ''} />
+                                <input type="number" step="${unitStep}" min="${unitMin}" inputmode="${inputMode}" class="inv-input variant-qty-input" data-id="${v.id}" data-decimal="${allowDecimal ? 1 : 0}" value="${Number(v.qty || 0)}" ${unitSuffix ? `data-suffix="${unitSuffix}"` : ''} />
                             </div>
                         </div>
                     `);
@@ -199,7 +163,7 @@
                         </div>
                         <div class="inv-bottom">
                             <div class="inv-input-wrap">
-                                <input type="number" step="0.5" min="0" class="inv-input product-qty-input" value="${Number(product.qty || 0)}" ${unitSuffix ? `data-suffix="${unitSuffix}"` : ''} />
+                                <input type="number" step="${unitStep}" min="${unitMin}" inputmode="${inputMode}" class="inv-input product-qty-input" data-decimal="${allowDecimal ? 1 : 0}" value="${Number(product.qty || 0)}" ${unitSuffix ? `data-suffix="${unitSuffix}"` : ''} />
                             </div>
                             <button type="button" class="btn btn-primary inv-inline-save">{{ trans('admin::admin.buttons.save') }}</button>
                         </div>
@@ -266,12 +230,16 @@
                 payload.variants = {};
                 variantInputs.forEach(inp => {
                     const id = inp.getAttribute('data-id');
-                    const v = parseFloat((inp.value || '0').replace(',', '.')) || 0;
+                    const allow = String(inp.getAttribute('data-decimal') || '0') === '1';
+                    let v = parseFloat((inp.value || '0').replace(',', '.')) || 0;
+                    if (!allow) v = Math.trunc(v);
                     payload.variants[id] = { qty: v };
                 });
             } else {
                 const inp = drawerContent.querySelector('.product-qty-input');
-                const v = parseFloat((inp.value || '0').replace(',', '.')) || 0;
+                const allow = String(inp?.getAttribute('data-decimal') || '0') === '1';
+                let v = parseFloat((inp?.value || '0').replace(',', '.')) || 0;
+                if (!allow) v = Math.trunc(v);
                 payload.qty = v;
             }
 
@@ -296,11 +264,23 @@
             });
         });
 
+        $(document).on('input', '.inv-input', function () {
+            const allow = String(this.getAttribute('data-decimal') || '0') === '1';
+            if (!allow) {
+                const val = String(this.value || '');
+                if (val.includes('.')) {
+                    this.value = String(Math.trunc(Number(val)) || '');
+                }
+            }
+        });
+
         $(document).on('click', '.inv-inline-save', function () {
             if (!currentProductId) return;
             const payload = {};
             const inp = drawerContent.querySelector('.product-qty-input');
-            const v = parseFloat((inp?.value || '0').replace(',', '.')) || 0;
+            const allow = String(inp?.getAttribute('data-decimal') || '0') === '1';
+            let v = parseFloat((inp?.value || '0').replace(',', '.')) || 0;
+            if (!allow) v = Math.trunc(v);
             payload.qty = v;
 
             axios.patch(`${FleetCart.baseUrl}/admin/products/${currentProductId}/inventory`, payload).then(() => {
@@ -318,6 +298,21 @@
 
     @push('styles')
     <style>
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 24px);
+            grid-auto-rows: 24px;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .actions-grid a,
+        .actions-grid button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         #inventory-drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 1040; }
         #inventory-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
         #inventory-drawer { position: fixed; top: 0; right: -480px; width: 480px; height: 100%; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,0.15); z-index: 1050; transition: right .25s; display: flex; flex-direction: column; }

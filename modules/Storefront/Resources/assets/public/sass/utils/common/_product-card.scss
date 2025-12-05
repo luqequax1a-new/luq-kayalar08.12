@@ -1,6 +1,6 @@
 .product-card {
     position: relative;
-    display: flex !important;
+    display: flex;
     height: 100%;
     margin: 0 6px;
     flex-direction: column;
@@ -59,12 +59,15 @@
     .product-image {
         padding-bottom: 100%;
         border-radius: 10px;
+        position: relative;
 
         .image-placeholder {
             height: 85px;
             width: 85px;
         }
     }
+
+    /* restore default image behavior from _product.scss (absolute centered) */
 
     .product-badge {
         left: 0;
@@ -153,6 +156,10 @@
         .btn-wishlist {
             margin-bottom: 2px;
         }
+
+        .btn-compare {
+            display: none !important;
+        }
     }
 
     &:hover {
@@ -211,12 +218,62 @@
 
     .product-card-middle {
         position: relative;
-        display: grid;
-        grid-template-rows: auto auto;
-        row-gap: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
         padding: 10px 12px 6px;
         z-index: 0;
         margin-bottom: auto;
+    }
+
+    .variant-thumbnails {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 4px;
+        margin-bottom: 5px;
+
+        .variant-count {
+            height: 40px;
+            width: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: #f2f2f6;
+            color: var(--color-black);
+            font-size: 12px;
+            font-weight: var(--font-medium);
+            cursor: pointer;
+        }
+    }
+
+    .variant-thumbnails .variant-thumb,
+    .variant-all-inline .variant-thumb {
+        height: 40px;
+        width: 40px;
+        padding: 0;
+        border: none;
+        background: transparent;
+        border-radius: 6px;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+    .variant-thumbnails .variant-thumb img,
+    .variant-all-inline .variant-thumb img {
+        height: 100%;
+        width: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .variant-all-inline {
+        display: grid;
+        grid-template-columns: repeat(4, 40px);
+        grid-auto-rows: 40px;
+        gap: 6px;
+        margin-top: 6px;
     }
 
     .product-rating {
@@ -236,6 +293,10 @@
             margin-left: 0;
             font-weight: var(--font-medium);
         }
+    }
+
+    .product-rating:empty {
+        display: none;
     }
 
     .product-name {
@@ -261,7 +322,8 @@
             color: var(--color-black);
             text-decoration-line: underline;
             text-decoration-color: transparent;
-            min-height: calc(1.4em * 2);
+            min-height: 0;
+            height: auto;
 
             &:hover {
                 text-decoration-color: var(--color-black);
@@ -274,6 +336,7 @@
     }
 
     .product-card-middle:not(.has-rating) {
+        display: block;
         padding-bottom: 0;
     }
 
@@ -286,6 +349,14 @@
     }
 
     .product-rating.no-reviews {
+        display: none;
+    }
+
+    .product-badge:empty {
+        display: none;
+    }
+
+    .product-badge.is-empty {
         display: none;
     }
 
@@ -311,6 +382,7 @@
         align-items: flex-start;
         width: calc(100% - 40px);
         overflow: hidden;
+        margin-top: auto;
 
         .previous-price {
             font-size: 15px;
@@ -339,6 +411,8 @@
             }
         }
     }
+
+    
 
     .btn-add-to-cart {
         display: flex;

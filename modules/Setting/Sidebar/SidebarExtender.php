@@ -21,5 +21,37 @@ class SidebarExtender extends BaseSidebarExtender
                 );
             });
         });
+
+        $menu->group(trans('admin::sidebar.content'), function (Group $group) {
+            $group->item(trans('admin::sidebar.automations'), function (Item $item) {
+                $item->weight(21);
+                $item->icon('fa fa-tasks');
+
+                $item->item(trans('admin::sidebar.review_campaigns'), function (Item $item) {
+                    $item->weight(1);
+                    $item->route('admin.settings.review_campaign');
+                    $item->authorize(
+                        $this->auth->hasAccess('admin.settings.edit')
+                    );
+                });
+
+                $item->item(trans('admin::sidebar.whatsapp_module'), function (Item $item) {
+                    $item->weight(2);
+                    $item->route('admin.settings.whatsapp_module');
+                    $item->authorize(
+                        $this->auth->hasAccess('admin.settings.edit')
+                    );
+                });
+
+                $item->item('Etiket-Görsel', function (Item $item) {
+                    $item->weight(3);
+                    $item->route('admin.tag_badges.index');
+                    $item->icon('fa fa-image');
+                    $item->authorize(
+                        $this->auth->hasAccess('admin.settings.edit')
+                    );
+                });
+            });
+        });
     }
 }

@@ -37,6 +37,9 @@
     "User": true,
     "Variation": true,
     "Importer": true,
-    "Unit": true,
-    "Address": true
+        "Unit": true,
+        "Address": true,
+    "Ticket": true,
+    "SeoBulk": true
+    ,"Geliver": true
 }

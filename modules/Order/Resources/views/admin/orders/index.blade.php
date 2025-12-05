@@ -15,9 +15,11 @@
                         <th>{{ trans('admin::admin.table.id') }}</th>
                         <th>{{ trans('order::orders.table.customer_name') }}</th>
                         <th>{{ trans('order::orders.table.customer_email') }}</th>
+                        <th>{{ trans('order::orders.payment_method') }}</th>
                         <th>{{ trans('admin::admin.table.status') }}</th>
                         <th>{{ trans('order::orders.table.total') }}</th>
                         <th data-sort>{{ trans('admin::admin.table.created') }}</th>
+                        <th>{{ trans('admin::admin.table.actions') }}</th>
                     </tr>
                 @endslot
             @endcomponent
@@ -40,9 +42,11 @@
                 { data: 'id', width: '5%' },
                 { data: 'customer_name', orderable: false, searchable: false },
                 { data: 'customer_email' },
+                { data: 'payment_method', name: 'payment_method' },
                 { data: 'status' },
                 { data: 'total' },
                 { data: 'created', name: 'created_at' },
+                { data: 'actions', orderable: false, searchable: false },
             ],
         });
     </script>

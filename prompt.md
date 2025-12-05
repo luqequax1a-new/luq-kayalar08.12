@@ -1,287 +1,308 @@
-KONU – ÖZET
+Laravel tabanlı FleetCart e-ticaret projem var. Proje kökünde çalışıyorsun. Aşağıdaki adımları, FleetCart’ın mevcut modül mimarisine uygun şekilde eksiksiz uygula. Amaç: GitHub’daki resmi Geliver PHP SDK’sını (https://github.com/GeliverApp/geliver-php) kullanarak “Geliver” adında bir modül yazmak ve:
+
+- Siparişi Geliver’e “shipment” olarak göndermek,
+- KESİNLİKLE ve ASLA otomatik etiket / kargo satın alma yapmamak (transactions()->acceptOffer kullanılmayacak),
+- Geliver webhook ile kargo durumunu alıp FleetCart sipariş status alanını güncellemek,
+- Posta kodu (zip) sipariş adresinde boş olabilir, bu durumda zip alanını API’ye hiç göndermemek.
+
+Adımlar:
+
+1) Composer ile SDK kurulumu
+--------------------------------
+1. Proje kökünde:
+   - `composer require geliver/sdk:^1.0`
+2. PHP sürümü uymuyorsa (SDK php >= 8.1 istiyor), bana uyarı ver; ama sen yine de entegrasyon kod yapısını hazırla.
+
+2) Env ve config ayarları
+---------------------------
+1. `.env` dosyasına aşağıdaki env değerlerini ekle (dummy bırak, ben sonra dolduracağım):
+
+   GELIVER_API_TOKEN=
+   GELIVER_SENDER_ADDRESS_ID=            # Geliver’de oluşturulmuş senderAddressID veya sen oluşturup dolduracaksın
+   GELIVER_DEFAULT_LENGTH=10.0
+   GELIVER_DEFAULT_WIDTH=10.0
+   GELIVER_DEFAULT_HEIGHT=10.0
+   GELIVER_DEFAULT_WEIGHT=1.0
+   GELIVER_TEST_MODE=true                # local/stage’de true, prod’da false olacak
+   GELIVER_WEBHOOK_SECRET=               # opsiyonel, basit shared secret
+
+2. `config/services.php` içine `geliver` adında bir dizi ekle:
+
+   'geliver' => [
+       'token'            => env('GELIVER_API_TOKEN'),
+       'sender_address_id'=> env('GELIVER_SENDER_ADDRESS_ID'),
+       'default_length'   => env('GELIVER_DEFAULT_LENGTH', 10.0),
+       'default_width'    => env('GELIVER_DEFAULT_WIDTH', 10.0),
+       'default_height'   => env('GELIVER_DEFAULT_HEIGHT', 10.0),
+       'default_weight'   => env('GELIVER_DEFAULT_WEIGHT', 1.0),
+       'test_mode'        => env('GELIVER_TEST_MODE', true),
+       'webhook_secret'   => env('GELIVER_WEBHOOK_SECRET'),
+   ],
+
+3) Geliver modül yapısı
+-------------------------
+FleetCart’ın modül yapısına uygun şekilde `modules/Geliver` adında bir modül oluştur:
+
+- module.json (standart FleetCart modül tanımı)
+- Providers:
+  - `Modules\Geliver\Providers\GeliverServiceProvider` (config, routes, views, translations register)
+- Config:
+  - `modules/Geliver/Config/geliver.php` (status mapping vs.)
+- Http:
+  - `modules/Geliver/Http/routes.php`
+  - `modules/Geliver/Http/Controllers/OrderGeliverController.php`
+  - `modules/Geliver/Http/Controllers/WebhookController.php`
+- Services:
+  - `modules/Geliver/Services/GeliverService.php`
+- Resources:
+  - `modules/Geliver/Resources/views/admin/settings.blade.php` (admin ayar sayfası)
+  - Sipariş detayına ekleyeceğin buton için ek view parçası gerekirse
+
+ServiceProvider’da:
+- config/geliver.php’yi publish/merge et,
+- routes dosyalarını yükle (admin + public),
+- view dizinini register et.
+
+4) DB migration’ları
+----------------------
+FleetCart’ın migration stiline uygun şekilde aşağıdaki alanları ekleyen migration yaz:
+
+- `orders` tablosuna:
+  - `geliver_shipment_id` (nullable string)
+  - `geliver_shipment_payload` (nullable json/text; DB ne destekliyorsa)
+  - `geliver_last_status` (nullable string)
+  - `geliver_last_status_at` (nullable datetime)
+
+Migration’ı oluştur, register et ve çalıştırmak için gerekli artisan komutunu belirt.
+
+5) Config: status map
+-----------------------
+`modules/Geliver/Config/geliver.php` içinde:
+
+- `status_map` dizisi tanımla. Örnek:
+
+  return [
+      'status_map' => [
+          'New'              => 'processing',
+          'ReadyToShip'      => 'processing',
+          'PickedUp'         => 'processing',
+          'InTransit'        => 'processing',
+          'OutForDelivery'   => 'processing',
+          'Delivered'        => 'completed',
+          'Exception'        => 'on_hold',
+          'Canceled'         => 'canceled',
+          'CanceledByCarrier'=> 'canceled',
+      ],
+      'final_statuses' => ['completed', 'canceled', 'refunded'],
+  ];
+
+- Bu mapping’i Webhook tarafında kullanacağız.
+- final_statuses: Bu statülere gelmiş siparişi geriye almamaya dikkat et (ör. completed → tekrar processing yapma).
+
+6) GeliverService yazımı
+--------------------------
+`modules/Geliver/Services/GeliverService.php` sınıfını oluştur:
 
-FleetCart’ta Unit sistemi ekli. Metre gibi ondalıklı birimlerde hâlâ 3 ciddi problem var:
+- Namespace: `Modules\Geliver\Services;`
+- Kullan:
 
-Ürün detayda qty=1.5 ile “Add to Cart” deyince sepet satırı 2 olarak gidiyor. Ama side cart / sepet içinde qty’yi 1.5 → 2.5 olarak arttırınca doğru çalışıyor. Yani ilk AddToCart akışında qty yuvarlanıyor.
+  use Geliver\Client;
+  use Modules\Order\Entities\Order;
 
-Müşteri input’a 1.2 yazınca 1.2 kabul edilmiyor, 1.5’e zorlanıyor. Min=0.5, step=0.5 için geçersiz değerlerde düzgün bir validasyon/mesaj yok, rastgele normalize oluyor.
+- Yapıcı:
 
-Admin panelde metrelik üründe stok alanına 10.5 yazınca 11’e yuvarlıyor ve stok kolonunda her zaman “Adet” yazıyor. Stok hem integer’a cast ediliyor hem de unit suffix yanlış.
+  - `new Client(config('services.geliver.token'))` ile client oluştur.
+  - Token boşsa anlamlı bir Exception fırlat (örn. RuntimeException).
 
-Bu 3 sorunu KÖKTEN çözmek istiyorum. Aşağıdaki maddeleri eksiksiz uygula.
+- `public function sendOrderToGeliver(Order $order): array` metodu:
 
-1) GENEL KURAL: Decimal unit’ler için qty ASLA int’e çevrilmeyecek
+  Gereksinimler:
 
-Unit modeli:
+  1. Eğer `$order->geliver_shipment_id` doluysa: sipariş zaten Geliver’e gönderilmiş demektir, Exception veya anlamlı hata dön.
+  2. `senderAddressID`:
 
-is_decimal_stock = true olan birimlerde:
+     - `config('services.geliver.sender_address_id')` değerini kullan.
+     - Bu değer boşsa ya hata ver, ya da (opsiyonel) mağaza adresinden otomatik sender adresi oluşturmak için TODO notu bırak. Şimdilik senderAddressID’nin dolu olduğunu varsay.
 
-qty float/decimal(10,2) tutulacak.
+  3. Shipping adresi:
 
-Ne PHP’de (int), intval, round, floor, ceil; ne JS’te parseInt, Math.round kullanılmayacak.
+     - FleetCart içindeki shipping address modelini kullan (`$order->shippingAddress` veya gerçek ismi neyse onu kullan).
+     - Aşağıdaki alanları doldur:
 
-is_decimal_stock = false birimlerde:
+       - name: `first_name + last_name`
+       - email: önce `$order->customer_email`, yoksa shippingAddress email
+       - phone: shippingAddress phone veya `$order->customer_phone`
+       - address1: shippingAddress address_1 (gerekirse address_2 de ekle)
+       - countryCode: sabit 'TR'
+       - cityName: shippingAddress city
+       - cityCode: varsa shippingAddress city_code, yoksa boş string
+       - districtName: varsa shippingAddress district
+       - zip: SADECE `$shippingAddress->postcode` boş DEĞİLSE ekle.
+         - Yani: postcode boşsa `zip` key’ini payload’a hiç koyma. Boş string veya null gönderme.
 
-Mevcut adet mantığı (1,2,3…) devam edebilir.
+  4. Ölçü ve ağırlıklar:
 
-Kod taraması yap:
+     - `length`, `width`, `height`, `weight` alanlarını config/services.geliver içinden çek:
+       - `config('services.geliver.default_length')` vs.
+     - Tüm bu numeric alanları string’e çevir (Geliver README’de “İstek alanları string olmalıdır” diyor).
+     - `distanceUnit` → 'cm', `massUnit` → 'kg'.
 
-Global search:
+  5. Order bilgisi:
 
-(int, intval(, round(, ceil(, floor(, number_format($qty, 0
+     - orderNumber: `$order->id` veya sipariş numarası field’ı her ne ise o.
+     - sourceIdentifier: `config('app.url')` (tam domain; README’de olduğu gibi).
+     - totalAmount: siparişin toplam tutarı (örneğin `$order->total`), string olarak.
+     - totalAmountCurrency: `$order->currency` veya varsayılan 'TRY'.
 
-parseInt(, Math.round(
+  6. Test/Prod seçimi:
+
+     - Eğer `config('services.geliver.test_mode')` true ise:
+       - `$client->shipments()->createTest($payload);`
+     - Değilse:
+       - `$client->shipments()->create($payload);`
+
+  7. DÖNÜŞ ve KAYIT:
+
+     - Gelen `$shipment` array’i içinde en az `id` olmalı.
+     - `$order->geliver_shipment_id = $shipment['id'] ?? null;`
+     - `$order->geliver_shipment_payload = $shipment;`
+     - `$order->geliver_last_status = $shipment['status'] ?? null;` (varsa)
+     - `$order->geliver_last_status_at = now();`
+     - `$order->save();`
+     - Metot geriye `$shipment` array’ini döndürsün.
+
+  8. KRİTİK KURAL:
+     - Bu serviste VEYA projede hiçbir yerde:
+       - `$client->transactions()->acceptOffer(...)` ÇAĞRILMAYACAK.
+     - Yani otomatik kargo teklifi kabulü / etiket satın alma yok. Sadece shipment oluşturuyoruz; etiketleri ben panelden manuel alacağım.
+
+7) Admin ayar ekranı
+----------------------
+FleetCart admin panelinde, tercihen “Settings → Shipping” altında veya ayrı bir menüde “Geliver Entegrasyonu” başlıklı bir ayar sayfası oluştur:
+
+- Alanlar:
+  - Checkbox: “Geliver entegrasyonu aktif mi?” → Boolean setting (ör. `geliver_enabled`)
+  - Text: “API Token” → `GELIVER_API_TOKEN`
+  - Text: “Sender Address ID (Geliver)” → `GELIVER_SENDER_ADDRESS_ID`
+  - Number/Text: “Varsayılan Uzunluk (cm)”, “Genişlik (cm)”, “Yükseklik (cm)”, “Ağırlık (kg)”
+  - Checkbox: “Test Modu (createTest kullan)” → `GELIVER_TEST_MODE`
+  - Text: “Webhook Secret (opsiyonel)” → `GELIVER_WEBHOOK_SECRET`
+
+- Bu ayarları framework’ün mevcut settings sistemi üzerinden okuyan helper’lar ile `config()` veya doğrudan `setting()` fonksiyonuna bağla.
+- Ayar sayfasında validasyon yap (token boş olamaz vs.) ama development için çok katı olma.
 
-qty, quantity, qtyToAdd
+8) Admin: Sipariş detayında “Geliver’e Gönder” butonu
+------------------------------------------------------
+Admin order detay sayfasına (FleetCart’ta orders show view neresiyse) aşağıdaki mantıkta buton ekle:
 
-Özellikle şu dosyalara bak:
-
-modules/Cart/Http/Controllers/CartController.php
-
-modules/Cart/CheckItemStock.php
-
-modules/Cart/** (Cart, CartItem, Services)
-
-modules/Order/Entities/OrderProduct.php
-
-Admin inventory / product save: SaveProductRequest, ProductRepository, vs.
-
-JS: CartItem.js, sepet/mini-cart ile ilgili scriptler.
-
-Yeni mantık (psödo):
-
-$rawQty = $request->input('qty', 1);
-$unit   = $product->getEffectiveUnit();
-
-if ($unit->isDecimalStock()) {
-    $qty = (float) $rawQty;
-} else {
-    $qty = (int) $rawQty;
-}
-
-
-AddToCart, cart update, order create dahil HER yerde bu kural geçerli olsun.
-
-Model cast’leri:
-
-cart_items.qty, order_products.qty, products.qty, product_variants.qty kolonları:
-
-DB tipi: decimal(10,2) (zaten değilse migration ile değiştir).
-
-Model cast: 'qty' => 'decimal:2' veya en azından 'float', asla 'integer' değil.
-
-2) Min / step validasyonu – 1.2 gibi ara değerler
-
-Unit içinde merkezi helper’lar kullan:
-
-// Modules\Unit\Entities\Unit.php
-
-public function isValidQuantity(float $qty): bool
-{
-    $min  = (float) $this->min;
-    $step = (float) $this->step;
-
-    if ($qty < $min) return false;
-    if ($step <= 0)  return true;
-
-    $epsilon = 1e-6;
-    $steps   = ($qty - $min) / $step;
-
-    return abs($steps - round($steps)) < $epsilon;
-}
-
-
-Ek olarak (isteğe bağlı ama güzel):
-
-public function normalizeQuantity(float $qty): float
-{
-    $min  = (float) $this->min;
-    $step = (float) $this->step;
-
-    if ($qty < $min) {
-        $qty = $min;
-    }
-
-    if ($step > 0) {
-        $steps = round(($qty - $min) / $step);
-        $qty   = $min + $steps * $step;
-    }
-
-    return $this->is_decimal_stock
-        ? (float) number_format($qty, 2, '.', '')
-        : (float) round($qty);
-}
-
-
-KULLANIM (AddToCart & cart update):
-
-$unit = $product->getEffectiveUnit();
-$qty  = $unit->isDecimalStock()
-    ? (float) $request->input('qty', $unit->min)
-    : (int) $request->input('qty', 1);
-
-if (! $unit->isValidQuantity($qty)) {
-    throw ValidationException::withMessages([
-        'qty' => __('Bu ürün :step adımlarla ve en az :min miktarda satılır. Örnek: :examples', [
-            'step'    => $unit->step,
-            'min'     => $unit->min,
-            'examples'=> '0.5, 1.0, 1.5, 2.0',
-        ]),
-    ]);
-}
-
-// İstersen normalize edip öyle kaydet:
-$qty = $unit->normalizeQuantity($qty);
-
-
-Yani:
-
-Kullanıcı 1.2 girerse → backend bunu geçersiz saymalı ve düzgün mesaj göstermeli; otomatik gizli 1.5’e yuvarlamasın.
-
-Frontend’de de bu mesajı göstermek için validate error’u yakala.
-
-3) ADD TO CART akışında 1.5 → 2’ye yuvarlama hatasını düzelt
-
-Bu hata özellikle ilk eklemede oluyor, sepet içi güncellemede değil. Demek ki:
-
-Cart update kodu parseFloat/decimal çalışıyor,
-
-Ama AddToCart path’inde hâlâ (int) veya parseInt kullanılıyor.
-
-Yapılacak:
-
-AddToCart controller/servis’te yukarıdaki unit tabanlı qty okuma mantığını kullan. Hiçbir yerde:
-
-(int)$request->qty
-intval($request->qty)
-round($request->qty)
-
-
-kalmayacak.
-
-JS tarafında “Add to cart” butonunda qty’yi toplayan kodda parseInt yerine parseFloat kullan:
-
-let qty  = parseFloat(this.qty || 1);
-let step = parseFloat(this.step || 1);
-// + / - butonlarında da:
-qty = qty + step;
-
-
-1.5 gönderip network request payload’ını kontrol et:
-
-Request body gerçekten qty: 1.5 mi?
-
-Response’da ve DB’de 1.5 kalmalı.
-
-4) Admin stok girişinde 10.5 → 11 yuvarlanması
-
-Sorun: admin’de stok field’ı hem frontend hem backend’de integer gibi davranıyor.
-
-Backend
-
-SaveProductRequest veya benzeri request class’ında:
-
-'qty' => 'numeric|min:0',
-
-
-olmalı; integer veya digits gibi kısıtlar olmasın.
-
-Product model cast: 'qty' => 'decimal:2' veya 'float'.
-
-Frontend (admin inventory form)
-
-Vue component (örn. modules/Product/Resources/assets/admin/js/components/General.vue veya Inventory.vue):
-
-Stok input:
-
-<input
-  type="number"
-  v-model.number="form.qty"
-  :step="unitStep"
-  :min="unitMin"
-/>
-
-
-unitStep ve unitMin değerleri seçili sale_unit’e göre gelsin.
-
-JS’te stok değeriyle ilgili parseInt, Math.round vs. kullanılmasın.
-
-5) Admin ürün listesinde stok + birim gösterimi
-
-İstenilen davranış:
-
-Eğer ürüne unit atanmışsa → stok 10.5 m, 8.5 m gibi.
-
-Eğer ürüne unit atanmadıysa → sadece 10 (hiç “Adet” yazmasın).
-
-Product modelinde:
-
-public function saleUnit()
-{
-    return $this->belongsTo(\Modules\Unit\Entities\Unit::class, 'sale_unit_id');
-}
-
-public function getEffectiveUnit(): ?\Modules\Unit\Entities\Unit
-{
-    if ($this->relationLoaded('saleUnit') ? $this->saleUnit : $this->saleUnit()->first()) {
-        return $this->saleUnit;
-    }
-
-    // Default unit sadece hesaplama için kullanılabilir ama
-    // UI’da suffix yazılmayacak, o yüzden burada null döndermek OK.
-    return \Modules\Unit\Entities\Unit::where('is_default', true)->first();
-}
-
-public function getFormattedStock(): string
-{
-    $qty = (float) $this->qty;
-    $unit = $this->saleUnit; // UI için sadece ürünün kendi unit’i
-
-    if ($unit && $unit->isDecimalStock()) {
-        $value = rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.');
-        $suffix = trim($unit->getDisplaySuffix());
-        return $suffix !== '' ? "{$value} {$suffix}" : $value;
-    }
-
-    // unit yoksa sade sayı
-    return (string) (int) round($qty);
-}
-
-
-modules/Product/Admin/ProductTable.php:
-
-->editColumn('in_stock', function (Product $product) {
-    return e($product->getFormattedStock());
-})
-
-
-Ayrıca Unit::getDisplaySuffix() asla '/' gibi saçma bir fallback üretmesin:
-
-public function getDisplaySuffix(): string
-{
-    if (! empty($this->short_suffix)) return $this->short_suffix;
-    if (! empty($this->label))        return $this->label;
-    return '';
-}
-
-6) TEST SENARYOLARI (mutlaka çalıştır)
-
-Metre birimi (min=0.5, step=0.5, decimal=true) atanmış bir üründe:
-
-Admin stok alanına 10.5 gir → kaydet → admin listede 10.5 m gör.
-
-Frontend stok gösterimi bozulmasın.
-
-Ürün detayda:
-
-Qty=1.5 → Add to Cart → side cart, normal sepet, checkout özetinde qty=1.5 ve satır fiyatı (1.5 * price) görünsün.
-
-Qty inputunu 1.2 yapıp ekle → hata mesajı: “Bu ürün 0.5 adımlarla satılır…”; 1.2’yi sessizce 1.5’e çevirmesin.
-
-Unit atanMAmış bir adet ürün:
-
-Admin stok: 10 → listede 10 görünsün, “Adet” yazmasın.
-
-Add to cart davranışı eskisi gibi kalsın (1,2,3…).
-
-Yaptığın değişikliklerde; özellikle qty’yi int’e çeviren yerleri, AddToCart akışını, admin stok kaydetmeyi ve ProductTable stok cell’ini tek tek not olarak listele.
+- Eğer `geliver_enabled` FALSE ise butonu gösterme.
+- Eğer `$order->geliver_shipment_id` doluysa:
+  - “Bu sipariş Geliver’e gönderildi. Shipment ID: ...” şeklinde bir bilgi alanı göster.
+- Eğer boşsa:
+  - “Bu siparişi Geliver’e gönder” şeklinde bir buton göster.
+
+Arka plan:
+
+- Admin route:
+
+  - `POST admin/geliver/orders/{order}/send`
+  - Controller: `OrderGeliverController@send`
+
+- `OrderGeliverController@send` içinde:
+
+  1. Order’ı route-model binding ile al.
+  2. `GeliverService::sendOrderToGeliver($order)` çağır.
+  3. Başarılıysa:
+     - Flash success mesajı: “Sipariş Geliver’e aktarıldı. Shipment ID: …”
+  4. Hata durumunda:
+     - Hata mesajını kullanıcıya göster (örneğin token yok, senderAddressID yok vb.)
+
+9) Webhook endpoint (kargo durumu → sipariş status)
+-----------------------------------------------------
+Amaç: Geliver shipment status değiştiğinde gönderdiği webhook ile FleetCart order.status alanını güncellemek.
+
+1. Public route:
+
+   - `POST /webhook/geliver/shipment-status`
+   - Route dosyası: `modules/Geliver/Http/routes.php`
+   - Controller: `WebhookController@shipmentStatus`
+
+2. CSRF muafiyeti:
+
+   - `app/Http/Middleware/VerifyCsrfToken.php` içindeki `$except` listesine:
+     - `'webhook/geliver/shipment-status'` yolunu ekle.
+
+3. WebhookController@shipmentStatus davranışı:
+
+   - Request JSON body’sini al.
+   - Opsiyonel güvenlik:
+     - Eğer `config('services.geliver.webhook_secret')` doluysa, şu mantığı uygula:
+       - Header’da veya query’de `X-Geliver-Secret` gibi bir değer bekle (sen uygun bir isim seç, kodu ona göre yaz).
+       - Gelen değer `config('services.geliver.webhook_secret')` ile eşleşmiyorsa 401 dön.
+   - Payload’tan şu alanları çek:
+     - Shipment ID: `id`
+     - Status: `status`
+     - (Varsa) order bilgisi: `order.orderNumber` veya `order.sourceIdentifier`
+   - `id` veya `status` yoksa 400 dön.
+   - Order bulma:
+     1. Önce `Order::where('geliver_shipment_id', $shipmentId)->first()`
+     2. Bulunamazsa ve payload’ta `order.orderNumber` varsa:
+        - `Order::where('id', $orderNumber)->first()` veya senin sisteminde sipariş numarası hangi alandaysa ona göre.
+   - Order bulunamadıysa:
+     - Log kaydı yaz ve 404 yerine 200/202 dönebilirsin ama response içeriğine “order not found” yaz.
+
+   - Status mapping:
+     - `config('geliver.status_map')` içinden `$newStatus = $statusMap[$payloadStatus] ?? null;`
+     - `config('geliver.final_statuses')` içinden `$finals = [...]` al.
+     - Eğer `$newStatus` null ise:
+       - Bu status için hiçbir işlem yapma, “Status not mapped, ignored” şeklinde 200 dön.
+     - Eğer `$order->status` zaten final_statuses içindeyse ve `$newStatus` bu final’lerden GERİDE ise:
+       - Sipariş durumunu geriye çekme, sadece `geliver_last_status` alanını güncelle ve 200 dön.
+   - Aksi halde:
+     - `$order->status = $newStatus;`
+     - `$order->geliver_last_status = $payloadStatus;`
+     - `$order->geliver_last_status_at = now();`
+     - `$order->save();`
+
+   - Son olarak 200 JSON döndür (örn. `['message' => 'ok']`).
+
+4. Loglama:
+   - Hem başarı hem hata durumlarında anlamlı log’lar yaz (channel: daily logs vs.).
+   - Özellikle: unknown shipment ID, unknown status vs. durumlarını logla.
+
+10) Test senaryosu
+--------------------
+Benim lokal ortamımda test edebilmem için şu adımları hazırla ve bana net şekilde yaz:
+
+1. `.env` içine test token’ımı yazmam için alan bırak (GELIVER_API_TOKEN).
+2. Gönderici adresi:
+
+   - İstersen küçük bir artisan komutu veya adminden buton yap:
+     - Mağaza adres bilgilerimi config’den kullanarak `addresses()->createSender([...])` çağır ve gelen `id`’yi `GELIVER_SENDER_ADDRESS_ID`’ye kaydet.
+   - Bu adımı yapmayacaksan, manuel olarak panelden aldığım senderAddressID’yi `.env`’ye yazacağım, sen buna göre çalış.
+
+3. Test shipment oluşturma:
+
+   - Admin order detayında “Geliver’e Gönder” butonuna bastığımda:
+     - Test modunda `createTest` fonksiyonunu çağır.
+     - Gelen response’u DB’ye kaydet.
+
+4. Webhook testi:
+
+   - Şimdilik gerçek Geliver webhook yerine:
+     - `POST /webhook/geliver/shipment-status` endpoint’ine örnek bir JSON payload ile (shipment id ve status içeren) test yapabileceğim bir örnek payload ve curl komutu yaz ki, postman/curl ile deneyebileyim.
+
+11) GENEL KURALLAR
+--------------------
+- Projede HİÇBİR yerde `transactions()->acceptOffer(...)` çağırma. Sadece shipment oluşturulacak, etiket/teklif alma kısmı tamamen manuel, ben Geliver panelinden yapacağım.
+- Numeric alanlar (length, width, height, weight, totalAmount vs.) Geliver’e GÖNDERİLİRKEN string olmalı.
+- Posta kodu (zip) boş olursa, zip alanını payload’ta hiç gönderme. Boş string veya null gönderme.
+- Tüm kodları FleetCart’ın mevcut namespace, klasör yapısı ve kod stiline uygun yaz.
+- Bütün oluşturduğun dosya yollarını ve önemli method/route isimlerini en sonda özetlemeyi unutma; ben projede nereye ne eklendiğini toplu görmek istiyorum.
+
+Tüm bu adımları eksiksiz uygula, sonra bana:
+- Eklediğin/oluşturduğun dosya yollarının listesi
+- Eklediğin route’lar ve HTTP metodları
+- Test etmek için hangi URL’leri çağıracağımı
+- Örnek webhook JSON payload’ını
+yazılı olarak özetle.

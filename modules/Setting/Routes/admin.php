@@ -13,3 +13,19 @@ Route::put('settings', [
     'uses' => 'SettingController@update',
     'middleware' => 'can:admin.settings.edit',
 ]);
+
+Route::get('settings/review-campaign', [
+    'as' => 'admin.settings.review_campaign',
+    'middleware' => 'can:admin.settings.edit',
+    'uses' => function () {
+        return view('setting::admin.review_campaign.index');
+    },
+]);
+
+Route::get('settings/whatsapp-module', [
+    'as' => 'admin.settings.whatsapp_module',
+    'middleware' => 'can:admin.settings.edit',
+    'uses' => function () {
+        return view('setting::admin.whatsapp_module.index');
+    },
+]);

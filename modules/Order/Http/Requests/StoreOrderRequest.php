@@ -51,6 +51,11 @@ class StoreOrderRequest extends Request
                 'payment_method' => ['required', Rule::in(Gateway::names())],
                 'terms_and_conditions' => 'accepted',
                 'shipping_method' => Cart::allItemsAreVirtual() ? 'nullable' : 'required',
+                'billing.phone' => ['nullable'],
+                'shipping.phone' => ['nullable'],
+                'invoice.title' => ['nullable'],
+                'invoice.tax_office' => ['nullable'],
+                'invoice.tax_number' => ['nullable'],
             ],
             $this->billingAddressRules(),
             $this->shippingAddressRules()
@@ -67,13 +72,13 @@ class StoreOrderRequest extends Request
     private function billingAddressRules()
     {
         return [
-            'billing.first_name' => 'required',
-            'billing.last_name' => 'required',
-            'billing.address_1' => 'required',
-            'billing.city' => 'required',
+            'billing.first_name' => 'nullable',
+            'billing.last_name' => 'nullable',
+            'billing.address_1' => 'nullable',
+            'billing.city' => 'nullable',
             'billing.zip' => ['nullable'],
-            'billing.country' => ['required', Rule::in(Country::supportedCodes())],
-            'billing.state' => 'required',
+            'billing.country' => ['nullable', Rule::in(Country::supportedCodes())],
+            'billing.state' => 'nullable',
         ];
     }
 
@@ -81,13 +86,13 @@ class StoreOrderRequest extends Request
     private function shippingAddressRules()
     {
         return [
-            'shipping.first_name' => 'required_if:ship_to_a_different_address,1',
-            'shipping.last_name' => 'required_if:ship_to_a_different_address,1',
-            'shipping.address_1' => 'required_if:ship_to_a_different_address,1',
-            'shipping.city' => 'required_if:ship_to_a_different_address,1',
+            'shipping.first_name' => 'required',
+            'shipping.last_name' => 'required',
+            'shipping.address_1' => 'required',
+            'shipping.city' => 'required',
             'shipping.zip' => ['nullable'],
-            'shipping.country' => ['required_if:ship_to_a_different_address,1', Rule::in(Country::supportedCodes())],
-            'shipping.state' => 'required_if:ship_to_a_different_address,1',
+            'shipping.country' => ['required', Rule::in(Country::supportedCodes())],
+            'shipping.state' => 'required',
         ];
     }
 }

@@ -18,7 +18,8 @@
                     changeCategory({
                         name: "{{ $subCategory->name }}",
                         banner: {{ $subCategory->banner }},
-                        slug: "{{ $subCategory->slug }}"
+                        slug: "{{ $subCategory->slug }}",
+                        meta_title: "{{ addslashes($subCategory->meta_title ?: ($subCategory->name . ' | ' . setting('store_name'))) }}"
                     })
                 '
             >

@@ -36,6 +36,8 @@ class AppServiceProvider extends ServiceProvider
         if (Request::secure()) {
             URL::forceScheme('https');
         }
+
+        \Carbon\Carbon::setLocale('tr');
     }
 
 

@@ -70,16 +70,33 @@ self.addEventListener("activate", (event) => {
 |--------------------------------------------------------------------------
 */
 self.addEventListener("fetch", (event) => {
+    const req = event.request;
+
+    // Only use offline fallback for navigation (HTML page requests)
+    if (req.mode === "navigate") {
+        event.respondWith(
+            fetch(req).catch(() => caches.match("/offline"))
+        );
+        return;
+    }
+
+    // Skip cross-origin requests entirely
+    try {
+        const reqUrl = new URL(req.url);
+        const swUrl = new URL(self.location.origin);
+        if (reqUrl.origin !== swUrl.origin) {
+            event.respondWith(fetch(req).catch(() => new Response(null, { status: 502 })));
+            return;
+        }
+    } catch (_) {}
+
+    // For same-origin requests, try cache then network with safe fallback
     event.respondWith(
-        caches
-            .match(event.request)
-            .then((response) => {
-                return response || fetch(event.request);
-            })
-            .catch(() => {
-                return caches.match("offline");
-            })
+        caches.match(req).then((response) => {
+            if (response) return response;
+            return fetch(req).catch(() => new Response(null, { status: 502 }));
+        })
     );
 });
 
-const pwaVersion = 1738566213;
+const pwaVersion = 1738569999;

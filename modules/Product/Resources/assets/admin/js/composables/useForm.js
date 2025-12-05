@@ -9,17 +9,19 @@ let form = reactive(initialFormData());
 const errors = reactive(new Errors());
 const { variantPosition } = useVariants();
 
-function initialFormData() {
-    return {
+    function initialFormData() {
+        return {
         name: null,
         description: null,
         brand_id: "",
         sale_unit_id: "",
+        primary_category_id: null,
         categories: [],
         tax_class_id: "",
         tags: [],
         is_virtual: false,
         is_active: true,
+        list_variants_separately: false,
         attributes: [],
         variations: [],
         variants: [],
@@ -39,14 +41,16 @@ function initialFormData() {
         original_slug: null,
         redirect_on_slug_change: true,
         meta: {},
-        short_description: null,
-        new_from: null,
-        new_to: null,
-        up_sells: [],
-        cross_sells: [],
-        related_products: [],
-    };
-}
+            short_description: null,
+            google_product_category_id: null,
+            google_product_category_path: null,
+            new_from: null,
+            new_to: null,
+            up_sells: [],
+            cross_sells: [],
+            related_products: [],
+        };
+    }
 
 export function useForm() {
     function prepareFormData(data) {
@@ -54,6 +58,15 @@ export function useForm() {
         prepareVariations(data);
         prepareVariants(data);
         prepareOptions(data);
+
+        try {
+            if (Array.isArray(data.product_media)) {
+                const videosAsMedia = data.product_media
+                    .filter((pm) => pm && pm.type === 'video' && pm.path)
+                    .map((pm) => ({ id: pm.id || null, path: pm.path, poster: pm.poster || '' }));
+                data.media = Array.isArray(data.media) ? [...data.media, ...videosAsMedia] : videosAsMedia;
+            }
+        } catch (_) {}
 
         return data;
     }

@@ -30,7 +30,7 @@ class Category extends Model implements Sitemapable
      *
      * @var array
      */
-    protected $fillable = ['parent_id', 'slug', 'position', 'is_searchable', 'is_active'];
+    protected $fillable = ['parent_id', 'slug', 'position', 'is_searchable', 'is_active', 'meta_title', 'meta_description'];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -138,6 +138,25 @@ class Category extends Model implements Sitemapable
     protected static function booted()
     {
         static::addActiveGlobalScope();
+
+        static::deleting(function (Category $category) {
+            \Modules\Product\Entities\Product::where('primary_category_id', $category->id)
+                ->chunkById(100, function ($products) use ($category) {
+                    foreach ($products as $product) {
+                        $remaining = $product->categories()
+                            ->where('categories.id', '!=', $category->id)
+                            ->orderBy('categories.position', 'asc')
+                            ->pluck('categories.id')
+                            ->all();
+
+                        $next = $remaining[0] ?? null;
+
+                        $product->withoutEvents(function () use ($product, $next) {
+                            $product->update(['primary_category_id' => $next]);
+                        });
+                    }
+                });
+        });
     }
 
 
@@ -156,6 +175,11 @@ class Category extends Model implements Sitemapable
     public function products()
     {
         return $this->belongsToMany(Product::class, 'product_categories');
+    }
+
+    public function primaryProducts()
+    {
+        return $this->hasMany(Product::class, 'primary_category_id');
     }
 
 
@@ -196,9 +220,12 @@ class Category extends Model implements Sitemapable
 
     public function toSitemapTag(): Url|string|array
     {
+        $changefreq = setting('support.sitemap.categories_changefreq', Url::CHANGE_FREQUENCY_DAILY);
+        $priority = (float) setting('support.sitemap.categories_priority', 0.8);
+
         return Url::create(route('categories.products.index', $this->slug))
             ->setLastModificationDate(Carbon::create($this->updated_at))
-            ->setChangeFrequency(Url::CHANGE_FREQUENCY_YEARLY)
-            ->setPriority(0.1);
+            ->setChangeFrequency($changefreq)
+            ->setPriority($priority);
     }
 }

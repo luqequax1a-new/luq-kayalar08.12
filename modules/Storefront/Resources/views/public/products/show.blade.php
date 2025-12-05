@@ -1,16 +1,27 @@
 @extends('storefront::public.layout')
 
-@section('title', $product->name)
+@section('title', $product->meta->meta_title ?: $product->name)
+
+@php($canonical = $product->variant?->url() ?? $product->url())
+@php($canonical = \Illuminate\Support\Str::before($canonical, '?'))
 
 @push('meta')
     <meta name="title" content="{{ $product->meta->meta_title ?: $product->name }}">
-    <meta name="description" content="{{ $product->meta->meta_description ?: $product->short_description }}">
-    <meta name="twitter:card" content="summary">
+    <meta name="description" content="{{ $product->seo_meta_description }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $product->meta->meta_title ?: $product->name }}">
+    <meta name="twitter:description" content="{{ $product->seo_meta_description }}">
     <meta property="og:type" content="product">
-    <meta property="og:url" content="{{ $product->variant?->url() ?? $product->url() }}">
+    <meta property="og:url" content="{{ $canonical }}">
     <meta property="og:title" content="{{ $product->meta->meta_title ?: $product->name }}">
-    <meta property="og:description" content="{{ $product->meta->meta_description ?: $product->short_description }}">
-    <meta property="og:image" content="{{ ($product->variant && $product->variant->base_image->id) ? $product->variant->base_image?->path : $product->base_image?->path ?? asset('build/assets/image-placeholder.png') }}">
+    <meta property="og:description" content="{{ $product->seo_meta_description }}">
+    @php(
+        $productOgImage = ($product->variant && optional($product->variant->base_image)->id)
+            ? optional($product->variant->base_image)->path
+            : ($product->base_image?->path ?? asset('build/assets/image-placeholder.png'))
+    )
+
+    <meta property="og:image" content="{{ $productOgImage }}">
     <meta property="og:locale" content="{{ locale() }}">
 
     @foreach (supported_locale_keys() as $code)
@@ -19,7 +30,35 @@
 
     <meta property="product:price:amount" content="{{ $product->variant?->selling_price->convertToCurrentCurrency()->amount() ?? $product->selling_price->convertToCurrentCurrency()->amount() }}">
     <meta property="product:price:currency" content="{{ currency() }}">
+    <meta name="twitter:image" content="{{ $productOgImage }}">
+    {{-- OG video meta removed; keeping only JSON-LD per request --}}
+    @if (!empty($hasVideo) && $hasVideo && !empty($videoUrl))
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "VideoObject",
+          "name": "{{ addslashes($product->name) }}",
+          "description": "{{ addslashes(\Illuminate\Support\Str::limit(strip_tags($product->description), 200)) }}",
+          "thumbnailUrl": "{{ $videoThumbnailUrl ?? ($product->base_image?->path ?? asset('build/assets/image-placeholder.png')) }}",
+          "uploadDate": "{{ optional($product->created_at)->toIso8601String() }}",
+          "contentUrl": "{{ $videoUrl }}",
+          "embedUrl": "{{ $videoUrl }}",
+          "publisher": {
+            "@type": "Organization",
+            "name": "{{ config('app.name') }}",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "{{ asset('images/logo.png') }}"
+            }
+          }
+        }
+        </script>
+    @endif
 @endpush
+
+@section('canonical')
+    <link rel="canonical" href="{{ $canonical }}">
+@endsection
 
 @section('breadcrumb')
     @if (!$categoryBreadcrumb)
@@ -42,6 +81,13 @@
 
             reviewCount: {{ $review->count ?? 0 }},
             avgRating: {{ $review->avg_rating ?? 0 }},
+            ratingBreakdown: {
+                5: {{ $review->count_5 ?? 0 }},
+                4: {{ $review->count_4 ?? 0 }},
+                3: {{ $review->count_3 ?? 0 }},
+                2: {{ $review->count_2 ?? 0 }},
+                1: {{ $review->count_1 ?? 0 }},
+            },
             flashSalePrice: '{{ $flashSalePrice }}'
         })"
         class="product-details-wrap"
@@ -119,12 +165,17 @@
 
 @push('globals')
     {!! $productSchemaMarkup->toScript() !!}
+    @if (!empty($breadcrumbSchemaMarkup))
+        {!! $breadcrumbSchemaMarkup->toScript() !!}
+    @endif
 
     <script>
         FleetCart.langs['storefront::product.left_in_stock'] = '{{ trans('storefront::product.left_in_stock') }}';
         FleetCart.langs['storefront::product.reviews'] = '{{ trans("storefront::product.reviews") }}';
         FleetCart.langs['storefront::product.review_submitted'] = '{{ trans("storefront::product.review_submitted") }}';
     </script>
+
+    
 
     @vite([
         'modules/Storefront/Resources/assets/public/sass/pages/products/show/main.scss',

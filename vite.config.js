@@ -27,6 +27,15 @@ export default defineConfig(async ({ command }) => {
 
     return {
         base: "",
+        server: {
+            host: process.env.HOST || "localhost",
+            port: Number(process.env.PORT) || Number(process.env.VITE_PORT) || 5173,
+            strictPort: true,
+            hmr: {
+                host: process.env.HOST || "localhost",
+                port: Number(process.env.PORT) || Number(process.env.VITE_PORT) || 5173,
+            },
+        },
         plugins: [
             laravel({
                 input: [

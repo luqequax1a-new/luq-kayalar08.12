@@ -43,9 +43,14 @@ class Invoice extends Mailable implements ShouldQueue
     {
         app()->setLocale($this->order->locale);
 
-        $this->order->load('products');
+        $this->order->load([
+            'products.product.files',
+            'products.product_variant.files',
+            'shippingAddress',
+            'billingAddress',
+        ]);
 
-        return $this->subject(trans('storefront::invoice.subject', ['id' => $this->order->id]))
+        return $this->subject('Siparişiniz Başarıyla Oluşturuldu ✅')
             ->view("storefront::emails.{$this->getViewName()}", [
                 'logo' => File::findOrNew(setting('storefront_mail_logo'))->path,
             ]);

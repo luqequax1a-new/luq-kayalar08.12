@@ -10,48 +10,38 @@
     $serverHasReviews = is_int($serverReviewCount) ? ($serverReviewCount > 0) : null;
 @endphp
 
-<template x-data="ProductRating({{ isset($data) && is_string($data) ? $data : 'product' }})">
+@php
+    $xDataParam = is_null($data ?? null)
+        ? 'product'
+        : (is_string($data ?? null) ? ($data ?? 'product') : json_encode($data));
+@endphp
+<div x-data='ProductRating({{ $xDataParam }})'>
     <a
         class="product-rating {{ $serverHasReviews === null ? '' : ($serverHasReviews ? 'has-reviews' : 'no-reviews') }}"
+        @if ($serverHasReviews === null)
+            :class="{ 'no-reviews': !(reviewCount > 0) }"
+        @endif
         :href="(typeof productUrl !== 'undefined' ? productUrl : window.location.pathname) + '#reviews'"
         x-on:click.prevent="typeof openReviewsTab==='function' && openReviewsTab()"
     >
-        @if ($serverHasReviews)
-            <div class="back-stars">
-                <i class="las la-star"></i>
-                <i class="las la-star"></i>
-                <i class="las la-star"></i>
-                <i class="las la-star"></i>
-                <i class="las la-star"></i>
+        <div class="back-stars">
+            <i class="las la-star"></i>
+            <i class="las la-star"></i>
+            <i class="las la-star"></i>
+            <i class="las la-star"></i>
+            <i class="las la-star"></i>
 
-                <div x-cloak class="front-stars" :style="{ width: ratingPercent + '%' }">
-                    <i class="las la-star"></i>
-                    <i class="las la-star"></i>
-                    <i class="las la-star"></i>
-                    <i class="las la-star"></i>
-                    <i class="las la-star"></i>
-                </div>
+            <div x-cloak class="front-stars" :style="{ width: ratingPercent + '%' }">
+                <i class="las la-star"></i>
+                <i class="las la-star"></i>
+                <i class="las la-star"></i>
+                <i class="las la-star"></i>
+                <i class="las la-star"></i>
             </div>
-        @endif
+        </div>
 
-        @if ($serverHasReviews)
-            <template x-if="reviewCount > 0">
-                <span class="rating-count" x-text="reviewCount"></span>
-            </template>
-        @endif
-
-        @if ($serverHasReviews)
-            <template x-if="reviewCount > 0">
-                <div
-                    class="reviews"
-                    x-text="
-                        reviewCount > 1 ?
-                        '{{ trans('storefront::product_card.reviews') }}' :
-                        '{{ trans('storefront::product_card.review') }}'
-                    "
-                >
-                </div>
-            </template>
-        @endif
+        <template x-if="reviewCount > 0">
+            <span class="rating-count" x-text="'(' + reviewCount + ')' "></span>
+        </template>
     </a>
-</template>
+</div>

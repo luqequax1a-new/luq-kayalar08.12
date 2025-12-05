@@ -43,12 +43,14 @@ class SuggestionController
             ->withName()
             ->withBaseImage()
             ->withPrice()
+            ->with(['variants'])
             ->addSelect([
                 'products.id',
                 'products.slug',
                 'products.in_stock',
                 'products.manage_stock',
                 'products.qty',
+                'products.list_variants_separately',
             ])
             ->with(['files', 'categories' => function ($query) {
                 $query->limit(5);

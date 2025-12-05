@@ -64,6 +64,15 @@
     }
 }
 
+.selectize-control .item {
+    white-space: normal;
+    line-height: 1.3;
+}
+
+.selectize-dropdown .option {
+    white-space: normal;
+}
+
 .selectize-input {
     padding: 4px 12px;
     border-radius: 6px;

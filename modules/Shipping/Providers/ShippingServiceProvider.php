@@ -19,9 +19,31 @@ class ShippingServiceProvider extends ServiceProvider
             return;
         }
 
+        if (setting('smart_shipping_enabled')) {
+            $this->registerSmartShipping();
+            $this->registerLocalPickup();
+
+            return;
+        }
+
         $this->registerFreeShipping();
         $this->registerLocalPickup();
         $this->registerFlatRate();
+    }
+
+
+    private function registerSmartShipping(): void
+    {
+        ShippingMethod::register('smart_shipping', function () {
+            $label = setting('smart_shipping_name') ?: 'Standard Shipping';
+            $baseRate = (float) (setting('smart_shipping_base_rate') ?? 0);
+
+            // ShippingServiceProvider must remain stateless with respect to Cart.
+            // We only register SmartShipping metadata here; the dynamic cost is
+            // computed later in the checkout layer via SmartShippingCalculator.
+
+            return new Method('smart_shipping', $label, $baseRate);
+        });
     }
 
 

@@ -16,6 +16,24 @@ Route::post('sitemaps', [
 ]);
 
 
+Route::get('robots', [
+    'as' => 'admin.robots.edit',
+    'uses' => 'RobotsController@edit',
+]);
+
+
+Route::post('robots', [
+    'as' => 'admin.robots.update',
+    'uses' => 'RobotsController@update',
+]);
+
+
+Route::post('robots/reset', [
+    'as' => 'admin.robots.reset',
+    'uses' => 'RobotsController@reset',
+]);
+
+
 Route::get('clear-cache', function () {
     try {
         Artisan::call('optimize:clear');

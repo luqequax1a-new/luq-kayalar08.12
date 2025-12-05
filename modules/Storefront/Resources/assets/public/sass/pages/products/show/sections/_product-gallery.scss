@@ -19,17 +19,66 @@
             opacity: 0;
             visibility: hidden;
         }
+        .variation-image {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            max-height: 100%;
+            max-width: 100%;
+            transform: translate(-50%, -50%);
+            z-index: 1;
+        }
     }
 
-    .variation-image {
+    &.is-video-active {
+        .product-badge-labels {
+            display: none;
+        }
+    }
+}
+
+// Inline video in main gallery should behave like images: centered inside square box
+.gallery-preview-item--video {
+    position: relative;
+
+    video.product-main-media--video {
         position: absolute;
         left: 50%;
         top: 50%;
-        max-height: 100%;
         max-width: 100%;
+        max-height: 100%;
         transform: translate(-50%, -50%);
-        z-index: 1;
+        object-fit: cover;
+        display: block;
     }
+}
+
+// Video slaytında imleç artı (+) yerine tıklanabilir hissi versin.
+.gallery-preview-item--video,
+.gallery-preview-item--video video.product-main-media--video {
+    cursor: pointer;
+}
+
+// Shared play icon overlay for video thumbs and main gallery
+.fc-video-play-icon {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    font-size: 18px;
+    line-height: 40px;
+    text-align: center;
+    pointer-events: auto;
+}
+
+.gallery-preview-item--video[data-playing='true'] .fc-video-play-icon {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .product-gallery-preview {
@@ -81,11 +130,11 @@
 
         > img {
             position: absolute;
-            left: 50%;
-            top: 50%;
-            max-height: 100%;
-            max-width: 100%;
-            transform: translate(-50%, -50%);
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .image-placeholder {
@@ -113,30 +162,6 @@
         > i {
             font-size: 16px;
             transition: none;
-        }
-    }
-
-    .product-gallery-pagination {
-        position: absolute;
-        left: 50%;
-        bottom: 12px;
-        transform: translateX(-50%);
-        z-index: 2;
-        pointer-events: auto;
-
-        .swiper-pagination-bullet {
-            width: 9px;
-            height: 9px;
-            margin: 0 4px;
-            background: #ffffff;
-            border: 1px solid rgba(0, 0, 0, 0.25);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-            opacity: 1;
-
-            &-active {
-                background: var(--color-primary);
-                border-color: var(--color-primary);
-            }
         }
     }
 }
@@ -218,11 +243,11 @@
 
         img {
             position: absolute;
-            left: 50%;
-            top: 50%;
-            max-height: 100%;
-            max-width: 100%;
-            transform: translate(-50%, -50%);
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .image-placeholder {
@@ -280,11 +305,10 @@
         min-width: 100%;
         padding-right: 0;
     }
-}
 
-@media screen and (max-width: 767px) {
-    .product-gallery-thumbnail {
-        display: none;
+    // Mobilde native fullscreen butonunu gizle; video grid içinde kalsın.
+    video.product-main-media--video::-webkit-media-controls-fullscreen-button {
+        display: none !important;
     }
 }
 

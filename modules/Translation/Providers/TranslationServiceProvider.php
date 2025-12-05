@@ -82,6 +82,8 @@ class TranslationServiceProvider extends ServiceProvider
         $this->commands([
             ImportTranslationsCommand::class,
             ExportTranslationsCommand::class,
+            \Modules\Translation\Console\Commands\NormalizeLocalesToTrCommand::class,
+            \Modules\Translation\Console\Commands\SeedTrLangFromEnCommand::class,
         ]);
     }
 }

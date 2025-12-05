@@ -7,7 +7,7 @@ return [
         'description' => 'Revolutionize your online business with the cutting-edge FleetCart e-commerce solution.',
         'short_name' => env('APP_NAME', 'FleetCart'),
         'dir' => 'auto',
-        'lang' => 'en',
+        'lang' => 'tr',
         'scope' => '/',
         'start_url' => '/',
         'background_color' => '#ffffff',

@@ -130,8 +130,9 @@
                         :step="unitStep"
                         id="qty"
                         class="form-control"
-                        inputmode="decimal"
+                        :inputmode="qtyInputMode"
                         @wheel="$event.target.blur()"
+                        @input="onQtyInput($event)"
                         v-model.number="form.qty"
                     />
 
@@ -230,6 +231,21 @@ function generateSku() {
     ).join("");
     const digits = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
     return `${letters}${digits}`;
+}
+
+const qtyInputMode = computed(() => {
+    return selectedUnit.value && selectedUnit.value.is_decimal_stock ? "decimal" : "numeric";
+});
+
+function onQtyInput(e) {
+    const allowDecimal = selectedUnit.value && selectedUnit.value.is_decimal_stock;
+    if (!allowDecimal && e && e.target) {
+        const v = String(e.target.value || "");
+        if (v.includes(".")) {
+            e.target.value = String(Math.trunc(Number(v)) || "");
+            form.qty = Number(e.target.value || 0);
+        }
+    }
 }
 
 // random svg icon for sku generator button

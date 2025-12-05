@@ -42,7 +42,7 @@
 
                                 <div class="invoice-date">
                                     <label for="invoice-date">{{ trans('order::print.date') }}:</label>
-                                    <span>{{ $order->created_at->format('Y / m / d') }}</span>
+                                    <span>{{ $order->created_at->toFormattedDateString() }}</span>
                                 </div>
                             </div>
                         </div>
@@ -101,11 +101,41 @@
                             <div class="invoice-address">
                                 <h5>{{ trans('order::print.billing_address') }}</h5>
 
-                                <span>{{ $order->billing_full_name }}</span>
-                                <span>{{ $order->billing_address_1 }}</span>
-                                <span>{{ $order->billing_address_2 }}</span>
-                                <span>{{ $order->billing_city }}, {!! $order->billing_state_name !!} {{ $order->billing_zip }}</span>
-                                <span>{{ $order->billing_country_name }}</span>
+                                @php($billing = $order->billingAddress)
+                                @php($shipping = $order->shippingAddress)
+                                @if ($billing && $order->billing_address_id !== $order->shipping_address_id)
+                                    @if($billing->company_name)
+                                        <span>Firma Adı: {{ $billing->company_name }}</span>
+                                    @endif
+                                    @if($billing->tax_number || $billing->tax_office)
+                                        <span>Vergi Dairesi: {{ $billing->tax_office }}</span>
+                                        <span>Vergi No: {{ $billing->tax_number }}</span>
+                                    @endif
+                                    <span>{{ $billing->phone }}</span>
+                                    <span>{{ $billing->address_line ?? $billing->address_1 }}</span>
+                                    @if ($billing->district_title || $billing->city_title)
+                                        <span>
+                                            {{ $billing->district_title }}
+                                            @if ($billing->district_title && $billing->city_title)
+                                                ,
+                                            @endif
+                                            {{ $billing->city_title }}
+                                        </span>
+                                    @endif
+                                @elseif ($shipping)
+                                    <span>{{ $shipping->first_name }} {{ $shipping->last_name }}</span>
+                                    <span>{{ $shipping->phone }}</span>
+                                    <span>{{ $shipping->address_line ?? $shipping->address_1 }}</span>
+                                    @if ($shipping->district_title || $shipping->city_title)
+                                        <span>
+                                            {{ $shipping->district_title }}
+                                            @if ($shipping->district_title && $shipping->city_title)
+                                                ,
+                                            @endif
+                                            {{ $shipping->city_title }}
+                                        </span>
+                                    @endif
+                                @endif
                             </div>
                         </div>
 
@@ -113,12 +143,21 @@
                             <div class="invoice-address">
                                 <h5>{{ trans('order::print.shipping_address') }}</h5>
 
-                                <span>{{ $order->shipping_full_name }}</span>
-                                <span>{{ $order->shipping_address_1 }}</span>
-                                <span>{{ $order->shipping_address_2 }}</span>
-                                <span>{{ $order->shipping_city }}, {!! $order->shipping_state_name !!}
-                                    {{ $order->shipping_zip }}</span>
-                                <span>{{ $order->shipping_country_name }}</span>
+                                @php($shipping = $shipping)
+                                @if ($shipping)
+                                    <span>{{ $shipping->first_name }} {{ $shipping->last_name }}</span>
+                                    <span>{{ $shipping->phone }}</span>
+                                    <span>{{ $shipping->address_line ?? $shipping->address_1 }}</span>
+                                    @if ($shipping->district_title || $shipping->city_title)
+                                        <span>
+                                            {{ $shipping->district_title }}
+                                            @if ($shipping->district_title && $shipping->city_title)
+                                                ,
+                                            @endif
+                                            {{ $shipping->city_title }}
+                                        </span>
+                                    @endif
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -178,7 +217,7 @@
                                             <td>
                                                 <label
                                                     class="visible-xs">{{ trans('order::print.unit_price') }}:</label>
-                                                <span>{{ $product->unit_price->convert($order->currency, $order->currency_rate)->convert($order->currency, $order->currency_rate)->format($order->currency) }}</span>
+                                                <span>{{ $product->unit_price->convert($order->currency, $order->currency_rate)->format($order->currency) }}</span>
                                             </td>
 
                                             <td>

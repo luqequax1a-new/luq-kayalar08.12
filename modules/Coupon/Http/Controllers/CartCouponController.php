@@ -23,6 +23,7 @@ class CartCouponController
     private array $checkers = [
         CouponExists::class,
         AlreadyApplied::class,
+        \Modules\Coupon\Checkers\ReviewCouponNotRedeemed::class,
         ValidCoupon::class,
         MinimumSpend::class,
         MaximumSpend::class,
@@ -32,6 +33,7 @@ class CartCouponController
         ExcludedCategories::class,
         UsageLimitPerCoupon::class,
         UsageLimitPerCustomer::class,
+        \Modules\Coupon\Checkers\SpecificCustomer::class,
     ];
 
 

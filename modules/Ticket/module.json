@@ -1,0 +1,9 @@
+{
+    "name": "Ticket",
+    "alias": "ticket",
+    "description": "Support tickets with chat-style messages.",
+    "priority": 100,
+    "providers": [
+        "Modules\\Ticket\\Providers\\TicketServiceProvider"
+    ]
+}

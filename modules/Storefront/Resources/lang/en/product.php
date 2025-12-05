@@ -24,7 +24,7 @@ return [
     'you_might_also_like' => 'You might also like',
     'description' => 'Description',
     'specification' => 'Specification',
-    'reviews' => 'Reviews (:count)',
+    'reviews' => ':count Reviews',
     'add_a_review' => 'Add a review',
     'review_submitted' => 'Review submitted',
     'review_form' => [

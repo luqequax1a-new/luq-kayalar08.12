@@ -14,6 +14,7 @@ Alpine.data(
             query: initialQuery,
             category: initialCategory,
         },
+        userSelectedCategory: false,
         suggestions: {
             categories: [],
             products: [],
@@ -29,11 +30,10 @@ Alpine.data(
         },
 
         get moreResultsUrl() {
-            if (this.form.category) {
-                return `/categories/${this.form.category}/products?query=${this.form.query}`;
+            if (this.userSelectedCategory && this.form.category) {
+                return `/categories/${this.form.category}/products?query=${this.form.query}&viewMode=grid`;
             }
-
-            return `/products?query=${this.form.query}`;
+            return `/products?query=${this.form.query}&viewMode=grid`;
         },
 
         get hasAnySuggestion() {
@@ -103,15 +103,20 @@ Alpine.data(
 
         changeCategory(category = "") {
             this.form.category = category;
-
+            this.userSelectedCategory = Boolean(category);
             this.fetchSuggestions();
         },
 
         async fetchSuggestions() {
             if (this.form.query === "") return;
 
+            const params = { query: this.form.query };
+            if (this.userSelectedCategory && this.form.category) {
+                params.category = this.form.category;
+            }
+
             const { data } = await axios.get(`/suggestions`, {
-                params: this.form,
+                params,
             });
 
             this.clearActiveSuggestion();
@@ -135,13 +140,11 @@ Alpine.data(
                 return;
             }
 
-            if (this.form.category) {
-                window.location.href = `/categories/${this.form.category}/products?query=${this.form.query}`;
-
+            if (this.userSelectedCategory && this.form.category) {
+                window.location.href = `/categories/${this.form.category}/products?query=${this.form.query}&viewMode=grid`;
                 return;
             }
-
-            window.location.href = `/products?query=${this.form.query}`;
+            window.location.href = `/products?query=${this.form.query}&viewMode=grid`;
         },
 
         showExistingSuggestions() {
@@ -241,13 +244,22 @@ Alpine.data(
         },
 
         hasBaseImage(product) {
-            return product.base_image.length !== 0;
+            const p = product?.base_image?.path;
+            const pm0 = product?.media?.[0];
+            const pm = (typeof pm0 === 'string') ? pm0 : (pm0 && pm0.path);
+            const v = product?.variant?.base_image?.path;
+            return !!(p || pm || v);
         },
 
         baseImage(product) {
-            return this.hasBaseImage(product)
-                ? product.base_image.path
-                : `${window.location.origin}/build/assets/image-placeholder.png`;
+            const p = product?.base_image?.path;
+            const pm0 = product?.media?.[0];
+            const pm = (typeof pm0 === 'string') ? pm0 : (pm0 && pm0.path);
+            const v = product?.variant?.base_image?.path;
+            if (p) return p;
+            if (pm) return pm;
+            if (v) return v;
+            return `${window.location.origin}/build/assets/image-placeholder.png`;
         },
     })
 );

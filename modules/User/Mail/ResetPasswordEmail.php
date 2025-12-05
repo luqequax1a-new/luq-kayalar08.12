@@ -50,7 +50,7 @@ class ResetPasswordEmail extends Mailable implements ShouldQueue
      */
     public function build()
     {
-        return $this->subject(trans('user::mail.reset_your_account_password'))
+        return $this->subject(setting('store_name') . ' – Şifre Sıfırlama Talebi')
             ->view("storefront::emails.{$this->getViewName()}", [
                 'logo' => File::findOrNew(setting('storefront_mail_logo'))->path,
             ]);

@@ -6,7 +6,10 @@
  @push('meta')
     <meta name="title" content="{{ $blogPost->meta->meta_title }}">
     <meta name="description" content="{{ $blogPost->meta->meta_description }}">
-    <meta name="twitter:card" content="summary">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $blogPost->meta->meta_title ?: $blogPost->title }}">
+    <meta name="twitter:description" content="{{ $blogPost->meta->meta_description }}">
+    <meta name="twitter:image" content="{{ $blogPost->featuredImage->path }}">
     <meta property="og:url" content="{{ url()->current() }}">
     <meta property="og:title" content="{{ $blogPost->meta->meta_title }}">
     <meta property="og:description" content="{{ $blogPost->meta->meta_description }}">
@@ -17,6 +20,10 @@
         <meta property="og:locale:alternate" content="{{ $code }}">
     @endforeach
 @endpush
+
+@section('canonical')
+    <link rel="canonical" href="{{ \Illuminate\Support\Str::before($blogPost->url(), '?') }}">
+@endsection
 
 @section('content')
     <section class="blog-post-wrap">

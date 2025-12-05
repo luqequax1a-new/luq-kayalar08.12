@@ -1,21 +1,36 @@
-User-Agent: *
+User-agent: *
 Disallow: /admin/
-Disallow: /*/admin/
-Disallow: /account/
-Disallow: /*/account/
-Disallow: /*/*suggestions
-Disallow: /storefront/
-Disallow: /*/storefront/
-Disallow: /cart/
-Disallow: /*/cart/
-Disallow: /checkout/
-Disallow: /*/checkout/
-Disallow: /password/
-Disallow: /*/password/
-Disallow: /logout/
-Disallow: /*/logout/
-Disallow: /install/
-Disallow: /license/
-Disallow: /offline/
+Disallow: /cpanel/
+Disallow: /vendor/
+Disallow: /webserver/
+Disallow: /error/
+Disallow: /storage/
+Disallow: /debugbar/
 
-Allow: /
+# Account & checkout flows
+Disallow: /login
+Disallow: /register
+Disallow: /password/
+Disallow: /cart
+Disallow: /checkout
+Disallow: /orders
+Disallow: /account
+
+# Search and pagination (can produce duplicate content)
+Disallow: /search
+Disallow: /*?q=
+Disallow: /*?page=
+Disallow: /*&page=
+
+# Internal technical paths (if they exist)
+Disallow: /api/
+Disallow: /_debugbar/
+
+# Important: DO NOT block static assets so Google can render the site
+Allow: /modules/
+Allow: /themes/
+Allow: /assets/
+Allow: /storage/cache/
+Allow: /storage/media/
+
+Sitemap: http://localhost:8001/sitemap.xml

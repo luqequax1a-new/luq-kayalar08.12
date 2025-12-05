@@ -51,8 +51,22 @@
                                                 <span x-text="address.address_2"></span>
                                             </template>
 
-                                            <span x-html="`${address.city}, ${address.state_name ?? address.state} ${address.zip}`"></span>
-                                            <span x-text="address.country_name"></span>
+                                            <span x-text="`${address.city_title}, ${address.state_name ?? address.state}`"></span>
+                                            <template x-if="address.zip">
+                                                <span x-text="address.zip"></span>
+                                            </template>
+                                            <template x-if="address.phone">
+                                                <span x-text="`Telefon: ${address.phone}`"></span>
+                                            </template>
+                                            <template x-if="address.invoice_title || address.company_name">
+                                                <span x-text="`Firma Adı: ${address.invoice_title || address.company_name}`"></span>
+                                            </template>
+                                            <template x-if="address.invoice_tax_number || address.tax_number">
+                                                <span x-text="`Vergi Numarası / TCKN: ${address.invoice_tax_number || address.tax_number}`"></span>
+                                            </template>
+                                            <template x-if="address.invoice_tax_office || address.tax_office">
+                                                <span x-text="`Vergi Dairesi: ${address.invoice_tax_office || address.tax_office}`"></span>
+                                            </template>
                                         </div>
 
                                         <div class="address-card-actions">
@@ -103,9 +117,11 @@
                             </h5>
 
                             <div class="row">
+                                <div class="col-md-18"></div>
+
                                 <div class="col-md-9">
                                     <div class="form-group">
-                                        <label for="first-name">
+                                        <label for="shipping-first-name">
                                             {{ trans('storefront::account.addresses.first_name') }}<span>*</span>
                                         </label>
 
@@ -125,7 +141,7 @@
 
                                 <div class="col-md-9">
                                     <div class="form-group">
-                                        <label for="last-name">
+                                        <label for="shipping-last-name">
                                             {{ trans('storefront::account.addresses.last_name') }}<span>*</span>
                                         </label>
 
@@ -145,7 +161,7 @@
 
                                 <div class="col-md-18">
                                     <div class="form-group">
-                                        <label for="address-1">
+                                        <label for="shipping-address-1">
                                             {{ trans('storefront::account.addresses.street_address') }}<span>*</span>
                                         </label>
 
@@ -162,32 +178,70 @@
                                             <span class="error-message" x-text="errors.get('address_1')"></span>
                                         </template>
                                     </div>
-
-                                
                                 </div>
 
                                 <div class="col-md-9">
                                     <div class="form-group">
-                                        <label for="city">
+                                        <label for="shipping-state">
+                                            {{ trans('storefront::account.addresses.state') }}<span>*</span>
+                                        </label>
+
+                                        <template x-if="Object.keys(states).length === 0">
+                                            <input
+                                                name="state"
+                                                type="text"
+                                                id="state"
+                                                class="form-control"
+                                                x-model="form.state"
+                                            >
+                                        </template>
+
+                                        <template x-if="Object.keys(states).length !== 0">
+                                            <select
+                                                name="state"
+                                                id="state"
+                                                class="form-control arrow-black"
+                                                x-model="form.state"
+                                            >
+                                                <option value="">
+                                                    {{ trans('storefront::account.addresses.please_select') }}
+                                                </option>
+
+                                                <template x-for="(name, code) in states">
+                                                    <option :value="code" x-html="name"></option>
+                                                </template>
+                                            </select>
+                                        </template>
+
+                                        <template x-if="errors.has('state')">
+                                            <span class="error-message" x-text="errors.get('state')"></span>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-9">
+                                    <div class="form-group">
+                                        <label for="shipping-city">
                                             {{ trans('storefront::account.addresses.city') }}<span>*</span>
                                         </label>
 
-                                        <template x-if="form.country === 'TR' && districts.length">
+                                        <template x-if="form.country === 'TR'">
                                             <select
                                                 name="city"
                                                 id="city"
                                                 class="form-control arrow-black"
                                                 x-model="form.city"
+                                                @change="changeCity($event.target.value)"
                                             >
                                                 <option value="">{{ trans('storefront::account.addresses.please_select') }}</option>
 
-                                                <template x-for="d in districts">
+                                                <template x-for="d in districts" :key="d">
                                                     <option :value="d" x-text="d"></option>
                                                 </template>
                                             </select>
                                         </template>
 
-                                        <template x-if="!(form.country === 'TR' && districts.length)">
+                                        <template x-if="form.country !== 'TR'">
                                             <input
                                                 name="city"
                                                 type="text"
@@ -203,28 +257,8 @@
                                     </div>
                                 </div>
 
-                                <div class="col-md-9">
-                                    <div class="form-group" x-cloak x-show="!singleCountry || form.country !== 'TR'">
-                                        <label for="zip">
-                                            {{ trans('storefront::account.addresses.zip') }}<span>*</span>
-                                        </label>
-
-                                        <input
-                                            name="zip"
-                                            type="text"
-                                            id="zip"
-                                            class="form-control"
-                                            x-model="form.zip"
-                                        >
-
-                                        <template x-if="errors.has('zip')">
-                                            <span class="error-message" x-text="errors.get('zip')"></span>
-                                        </template>
-                                    </div>
-                                </div>
-
-                                <div class="col-md-9">
-                                    <div class="form-group" x-cloak x-show="!singleCountry">
+                                <div class="col-md-9" x-cloak x-show="!singleCountry">
+                                    <div class="form-group">
                                         <label for="country">
                                             {{ trans('storefront::account.addresses.country') }}<span>*</span>
                                         </label>
@@ -249,42 +283,31 @@
 
                                 <div class="col-md-9">
                                     <div class="form-group">
-                                        <label for="state">
-                                            {{ trans('storefront::account.addresses.state') }}<span>*</span>
-                                        </label>
+                                        <label for="phone">Telefon<span>*</span></label>
 
-                                        <template x-if="hasNoStates">
+                                        <div class="input-group">
+                                            <span class="input-group-text">🇹🇷 +90</span>
                                             <input
-                                                name="state"
-                                                type="text"
-                                                id="state"
+                                                type="tel"
+                                                name="phone"
+                                                id="phone"
                                                 class="form-control"
-                                                x-model="form.state"
+                                                placeholder="10 haneli, başında 0 olmadan"
+                                                inputmode="numeric"
+                                                pattern="^[1-9][0-9]{9}$"
+                                                x-model="form.phone"
                                             >
-                                        </template>
+                                        </div>
 
-                                        <template x-if="!hasNoStates">
-                                            <select
-                                                name="state"
-                                                id="state"
-                                                class="form-control arrow-black"
-                                                x-model="form.state"
-                                            >
-                                                <option value="">
-                                                    {{ trans('storefront::account.addresses.please_select') }}
-                                                </option>
-
-                                                <template x-for="(name, code) in states">
-                                                    <option :value="code" x-html="name"></option>
-                                                </template>
-                                            </select>
-                                        </template>
-
-                                        <template x-if="errors.has('state')">
-                                            <span class="error-message" x-text="errors.get('state')"></span>
+                                        <template x-if="errors.has('phone')">
+                                            <span class="error-message" x-text="errors.get('phone')"></span>
                                         </template>
                                     </div>
                                 </div>
+
+                                
+
+                                
 
                                 <div class="col-md-18">
                                     <button

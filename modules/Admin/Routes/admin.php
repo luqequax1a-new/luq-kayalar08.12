@@ -9,3 +9,7 @@ Route::get('/sales-analytics', [
     'uses' => 'SalesAnalyticsController@index',
     'middleware' => 'can:admin.orders.index',
 ]);
+
+Route::resource('tag-badges', 'TagBadgeController')
+    ->except(['show'])
+    ->names('admin.tag_badges');

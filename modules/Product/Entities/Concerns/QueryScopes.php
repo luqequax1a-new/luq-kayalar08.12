@@ -13,9 +13,18 @@ trait QueryScopes
             ->withPrice()
             ->withCount('options')
             ->with('reviews')
+            ->withCount('reviews')
+            ->with(['variants' => function($q){
+                $q->default()->addSelect([
+                    'id','product_id','uid','is_default',
+                    'price','special_price','special_price_type','special_price_start','special_price_end',
+                    'selling_price'
+                ]);
+            }])
             ->withStock()
             ->withNew()
             ->addSelect(['products.sale_unit_id'])
+            ->addSelect(['products.list_variants_separately'])
             ->addSelect(
                 [
                     'products.id',

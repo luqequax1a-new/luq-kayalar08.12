@@ -1,8 +1,11 @@
 export function trans(langKey, replace = {}) {
-    let line = window.FleetCart.langs[langKey];
+    let line = window.FleetCart.langs[langKey] ?? "";
 
-    for (let key in replace) {
-        line = line.replace(`:${key}`, replace[key]);
+    const keys = Object.keys(replace).sort((a, b) => b.length - a.length);
+    for (const key of keys) {
+        const value = replace[key];
+        const re = new RegExp(`:${key}(?![A-Za-z_])`, "g");
+        line = line.replace(re, value);
     }
 
     return line;

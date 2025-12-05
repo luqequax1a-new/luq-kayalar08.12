@@ -94,10 +94,13 @@ class Page extends Model implements Sitemapable
 
     public function toSitemapTag(): Url|string|array
     {
+        $changefreq = setting('support.sitemap.pages_changefreq', Url::CHANGE_FREQUENCY_WEEKLY);
+        $priority = (float) setting('support.sitemap.pages_priority', 0.5);
+
         return Url::create($this->slug)
             ->setLastModificationDate(Carbon::create($this->updated_at))
-            ->setChangeFrequency(Url::CHANGE_FREQUENCY_YEARLY)
-            ->setPriority(0.1);
+            ->setChangeFrequency($changefreq)
+            ->setPriority($priority);
     }
 
 }

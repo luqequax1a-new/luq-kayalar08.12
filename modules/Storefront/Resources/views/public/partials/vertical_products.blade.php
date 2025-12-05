@@ -1,11 +1,20 @@
 <div x-data="ProductCard(product)" class="vertical-product-card">
     <a :href="productUrl" class="product-image">
-        <img
-            :src="baseImage"
-            :class="{ 'image-placeholder': !hasBaseImage }"
-            :alt="productName"
-            loading="lazy"
-        />
+        <picture>
+            <template x-if="imageSources.avif">
+                <source :srcset="imageSources.avif" type="image/avif">
+            </template>
+            <template x-if="imageSources.webp">
+                <source :srcset="imageSources.webp" type="image/webp">
+            </template>
+            <img
+                :src="imageSources.fallback"
+                :alt="productName"
+                loading="lazy"
+                width="400"
+                height="400"
+            />
+        </picture>
 
         <div class="product-image-layer"></div>
     </a>

@@ -47,6 +47,12 @@ class Coupon extends Model
         'maximum_spend',
         'usage_limit_per_coupon',
         'usage_limit_per_customer',
+        'is_review_coupon',
+        'review_id',
+        'order_id',
+        'customer_id',
+        'redeemed_order_id',
+        'redeemed_at',
     ];
 
     /**
@@ -175,6 +181,21 @@ class Coupon extends Model
     public function orders()
     {
         return $this->hasMany(Order::class)->withTrashed();
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class, 'order_id');
+    }
+
+    public function redeemedOrder()
+    {
+        return $this->belongsTo(Order::class, 'redeemed_order_id');
+    }
+
+    public function isRedeemed(): bool
+    {
+        return ! is_null($this->redeemed_at);
     }
 
 

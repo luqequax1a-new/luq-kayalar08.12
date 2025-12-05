@@ -5,6 +5,7 @@ namespace Modules\Product\Entities;
 use Illuminate\Http\Request;
 use Spatie\Sitemap\Tags\Url;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Modules\Support\Eloquent\Model;
 use Modules\Media\Eloquent\HasMedia;
 use Modules\Meta\Eloquent\HasMetaData;
@@ -22,6 +23,7 @@ use Modules\Product\Entities\Concerns\ModelMutators;
 use Modules\Product\Entities\Concerns\ModelAccessors;
 use Modules\Product\Entities\Concerns\HasSpecialPrice;
 use Modules\Product\Entities\Concerns\EloquentRelations;
+use Modules\Tag\Entities\TagBadge;
 use Modules\Unit\Entities\Unit;
 
 class Product extends Model implements Sitemapable
@@ -57,6 +59,8 @@ class Product extends Model implements Sitemapable
         'brand_id',
         'tax_class_id',
         'sale_unit_id',
+        'primary_category_id',
+        'google_product_category_path',
         'slug',
         'sku',
         'price',
@@ -72,6 +76,7 @@ class Product extends Model implements Sitemapable
         'is_active',
         'new_from',
         'new_to',
+        'list_variants_separately',
     ];
 
     /**
@@ -89,6 +94,7 @@ class Product extends Model implements Sitemapable
         'start_date' => 'datetime',
         'end_date' => 'datetime',
         'qty' => 'decimal:2',
+        'list_variants_separately' => 'boolean',
     ];
 
 
@@ -161,6 +167,24 @@ class Product extends Model implements Sitemapable
                 $product->upSellProducts()->sync(array_get($attributes, 'up_sells', []));
                 $product->crossSellProducts()->sync(array_get($attributes, 'cross_sells', []));
                 $product->relatedProducts()->sync(array_get($attributes, 'related_products', []));
+
+                $selectedCategories = array_get($attributes, 'categories', []);
+                $primary = array_get($attributes, 'primary_category_id');
+
+                if (!empty($primary) && in_array($primary, $selectedCategories)) {
+                    $product->withoutEvents(function () use ($product, $primary) {
+                        $product->update(['primary_category_id' => $primary]);
+                    });
+                } elseif (!empty($selectedCategories)) {
+                    $fallback = reset($selectedCategories);
+                    $product->withoutEvents(function () use ($product, $fallback) {
+                        $product->update(['primary_category_id' => $fallback]);
+                    });
+                } else {
+                    $product->withoutEvents(function () use ($product) {
+                        $product->update(['primary_category_id' => null]);
+                    });
+                }
             }
 
             $product->withoutEvents(function () use ($product) {
@@ -169,6 +193,28 @@ class Product extends Model implements Sitemapable
                 ]);
             });
         });
+    }
+
+
+    /**
+     * Get active tag badges for this product for the given context.
+     *
+     * @param string $context
+     * @return \Illuminate\Support\Collection
+     */
+    public function badgeVisualsFor(string $context)
+    {
+        $tags = $this->relationLoaded('tags')
+            ? $this->tags
+            : $this->tags()->get();
+
+        if ($tags->isEmpty()) {
+            return collect();
+        }
+
+        $tagIds = $tags->pluck('id')->all();
+
+        return TagBadge::forTagIds($tagIds, $context);
     }
 
 
@@ -186,7 +232,7 @@ class Product extends Model implements Sitemapable
             ->withName()
             ->withBaseImage()
             ->withPrice()
-            ->with(['saleUnit','variants'])
+            ->with(['saleUnit','variants','primaryCategory'])
             ->addSelect(['id', 'slug', 'is_active', 'in_stock', 'manage_stock', 'qty', 'created_at', 'updated_at'])
             ->addSelect(['sale_unit_id'])
             ->when($request->has('except'), function ($query) use ($request) {
@@ -220,6 +266,65 @@ class Product extends Model implements Sitemapable
             $this->toArray(),
             $cleanExceptAttributes
         );
+    }
+
+
+    private function cleanMetaText(?string $text): string
+    {
+        if ($text === null) {
+            return '';
+        }
+
+        // Remove HTML tags first
+        $clean = strip_tags($text);
+
+        // Decode HTML entities like &nbsp;, &ccedil;, &ndash; to real characters
+        $clean = html_entity_decode($clean, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // Normalize NBSP (U+00A0) to normal space
+        $clean = str_replace("\xC2\xA0", ' ', $clean);
+
+        // Normalize all whitespace
+        $clean = preg_replace('/\s+/u', ' ', $clean) ?? '';
+
+        // Trim and normalize encoding
+        $clean = trim($clean);
+        if ($clean === '') {
+            return '';
+        }
+
+        return mb_convert_encoding($clean, 'UTF-8', 'UTF-8');
+    }
+
+
+    public function getSeoMetaDescriptionAttribute(): ?string
+    {
+        // 1) Highest priority: explicit meta_description from bulk meta system
+        $metaDescription = optional($this->meta)->meta_description;
+        $metaDescription = $this->cleanMetaText(is_string($metaDescription) ? $metaDescription : null);
+
+        if ($metaDescription !== '') {
+            return $metaDescription;
+        }
+
+        // 2) Next: short_description (translated)
+        $short = $this->cleanMetaText($this->short_description ?? null);
+
+        if ($short !== '') {
+            return $short;
+        }
+
+        // 3) Fallback: description (translated), cleaned and limited
+        $desc = $this->cleanMetaText($this->description ?? null);
+
+        if ($desc !== '') {
+            return Str::limit($desc, 160, '...');
+        }
+
+        // 4) Ultimate fallback: product name (translated) or null
+        $name = $this->cleanMetaText($this->name ?? null);
+
+        return $name !== '' ? $name : null;
     }
 
 
@@ -306,15 +411,46 @@ class Product extends Model implements Sitemapable
 
     public function toSitemapTag(): Url|string|array
     {
+        $changefreq = setting('support.sitemap.products_changefreq', Url::CHANGE_FREQUENCY_WEEKLY);
+        $priority = (float) setting('support.sitemap.products_priority', 0.7);
+
         return Url::create($this->url())
             ->setLastModificationDate(Carbon::create($this->updated_at))
-            ->setChangeFrequency(Url::CHANGE_FREQUENCY_YEARLY)
-            ->setPriority(0.1);
+            ->setChangeFrequency($changefreq)
+            ->setPriority($priority);
     }
 
     public function saleUnit()
     {
         return $this->belongsTo(\Modules\Unit\Entities\Unit::class, 'sale_unit_id');
+    }
+
+    public function primaryCategory()
+    {
+        return $this->belongsTo(\Modules\Category\Entities\Category::class, 'primary_category_id');
+    }
+
+    public function productMedia()
+    {
+        return $this->hasMany(ProductMedia::class)->orderBy('position');
+    }
+
+    public function videos()
+    {
+        return $this->productMedia()->where('type', 'video');
+    }
+
+    public function seoCategory()
+    {
+        if ($this->primary_category_id) {
+            return $this->relationLoaded('primaryCategory') ? $this->primaryCategory : $this->primaryCategory()->first();
+        }
+
+        if ($this->relationLoaded('categories')) {
+            return $this->categories->sortBy('position')->first();
+        }
+
+        return $this->categories()->orderBy('position')->first();
     }
 
     public function getEffectiveUnit(): Unit
@@ -327,7 +463,20 @@ class Product extends Model implements Sitemapable
             }
         }
 
-        return null;
+        return new Unit([
+            'code' => 'unit_default',
+            'name' => 'Default Unit',
+            'label' => '',
+            'short_suffix' => '',
+            'info' => null,
+            'info_top' => null,
+            'info_bottom' => null,
+            'step' => 1,
+            'min' => 1,
+            'default_qty' => 1,
+            'is_default' => true,
+            'is_decimal_stock' => false,
+        ]);
     }
 
     public function getUnitMinAttribute(): float

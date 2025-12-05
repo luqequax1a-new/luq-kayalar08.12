@@ -1,0 +1,62 @@
+<?php
+
+return [
+    'admin' => 'Yönetim',
+    'storefront' => 'Mağaza',
+    'form' => [
+        'please_select' => 'Seçiniz',
+    ],
+    'buttons' => [
+        'save' => 'Kaydet',
+        'save_and_edit' => 'Kaydet ve Düzenle',
+        'save_and_exit' => 'Kaydet ve Çık',
+        'delete' => 'Sil',
+        'cancel' => 'İptal',
+    ],
+    'table' => [
+        'id' => 'ID',
+        'status' => 'Durum',
+        'created' => 'Oluşturuldu',
+        'actions' => 'İşlemler',
+        'updated' => 'Güncellendi',
+        'date' => 'Tarih',
+        'search_here' => 'Burada ara...',
+        'active' => 'Aktif',
+        'inactive' => 'Pasif',
+        'enabled' => 'Etkin',
+        'disabled' => 'Devre Dışı',
+        'yes' => 'Evet',
+        'no' => 'Hayır',
+        'approved' => 'Onaylandı',
+        'pending' => 'Beklemede',
+        'loading' => 'Yükleniyor...',
+        'no_matching_records_found' => 'Eşleşen kayıt bulunamadı',
+        'no_data_available_table' => 'Tabloda veri yok',
+        'show_menu_entries' => 'Sayfada _MENU_ kayıt göster',
+        'showing_start_end_total_entries' => 'Toplam _TOTAL_ kayıttan _START_–_END_ arası gösteriliyor',
+        'filtered_from_max_total_entries' => '(Toplam _MAX_ kayıttan filtrelendi)',
+        'showing_empty_entries' => '0 kayıttan 0–0 arası gösteriliyor',
+    ],
+    'pagination' => [
+        'previous' => 'Önceki',
+        'next' => 'Sonraki',
+    ],
+    'delete' => [
+        'confirmation' => 'Onay',
+        'confirmation_message' => 'Silmek istediğinize emin misiniz?',
+    ],
+    'shortcuts' => [
+        'keyboard_shortcuts' => 'Klavye kısayolları',
+        'available_shortcuts' => 'Bu sayfadaki kullanılabilir klavye kısayolları',
+        'this_menu' => 'Bu Menü',
+        'back_to_index' => ':name Listesine Dön',
+    ],
+    'errors' => [
+        404 => '404',
+        '404_title' => 'Üzgünüz! Sayfa bulunamadı',
+        '404_description' => 'Aradığınız sayfa bulunamadı',
+        500 => '500',
+        '500_title' => 'Üzgünüz! Bir şeyler ters gitti',
+        '500_description' => 'Yönetici bilgilendirildi',
+    ],
+];

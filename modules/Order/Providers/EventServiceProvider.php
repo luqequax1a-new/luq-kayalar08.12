@@ -18,6 +18,7 @@ class EventServiceProvider extends ServiceProvider
         OrderStatusChanged::class => [
             SendOrderStatusChangedEmail::class,
             SendOrderStatusChangedSms::class,
+            \Modules\Order\Listeners\ScheduleReviewRequestEmail::class,
         ],
     ];
 }

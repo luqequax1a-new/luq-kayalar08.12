@@ -50,6 +50,14 @@
                             </a>
                         </li>
 
+                        <li class="{{ request()->routeIs('account.tickets.index') || request()->routeIs('account.tickets.show') ? 'active' : '' }}">
+                            <a href="{{ route('account.tickets.index') }}">
+                                <i class="las la-comments"></i>
+
+                                {{ trans('ticket::ticket.tickets') }}
+                            </a>
+                        </li>
+
                         <li class="{{ request()->routeIs('account.reviews.index') ? 'active' : '' }}">
                             <a href="{{ route('account.reviews.index') }}">
                                 <i class="las la-comment"></i>

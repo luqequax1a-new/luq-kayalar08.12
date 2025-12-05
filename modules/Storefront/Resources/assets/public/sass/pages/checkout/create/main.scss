@@ -97,6 +97,29 @@
     }
 }
 
+.whatsapp-floating-btn {
+    position: fixed;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 999;
+    background: #1f2937;
+    color: #fff;
+    border-color: #1f2937;
+    border-radius: 0;
+    padding: 10px 14px;
+    line-height: 1.2;
+    white-space: normal;
+    max-width: 220px;
+}
+
+.whatsapp-floating-btn:hover,
+.whatsapp-floating-btn:focus {
+    background: #111827;
+    color: #fff;
+    border-color: #111827;
+}
+
 @media screen and (max-width: 1280px) {
     .checkout-form {
         .checkout-inner {
@@ -113,5 +136,53 @@
     .checkout-form {
         flex-direction: column;
         align-items: unset;
+    }
+
+    .whatsapp-floating-btn {
+        left: auto;
+        right: 12px;
+        bottom: 12px;
+        top: auto;
+        transform: none;
+        max-width: 75%;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 12px;
+        line-height: 1.2;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+}
+
+/* Checkout order summary specific tweaks */
+.order-summary-top {
+    .cart-item {
+        .product-image {
+            height: 90px;
+            width: 90px;
+            min-width: 90px;
+        }
+
+        .product-image .qty-count {
+            width: 25px;
+            height: 25px;
+            font-size: 11px;
+            line-height: 20px;
+            font-weight: var(--font-medium);
+            top: -8px;
+            right: -8px;
+        }
+    }
+}
+
+@media screen and (max-width: 400px) {
+    .order-summary-top {
+        .cart-item {
+            .product-info {
+                width: calc(100% - 90px);
+            }
+            .product-price {
+                width: calc(100% - 90px);
+            }
+        }
     }
 }

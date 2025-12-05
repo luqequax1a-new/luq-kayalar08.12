@@ -139,7 +139,7 @@
         }"
     >  
         <template x-if="!emptyProducts && viewMode === 'grid'">
-            @include('storefront::public.products.index.grid_view_products')
+            @include('storefront::public.partials.products.grid')
         </template>
 
         <template x-if="!emptyProducts && viewMode === 'list'">

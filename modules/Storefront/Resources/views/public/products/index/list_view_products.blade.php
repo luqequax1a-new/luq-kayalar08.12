@@ -1,18 +1,29 @@
 <div class="list-view-products">
     <template
-        x-for="product in products.data"
+        x-for="(product, idx) in products.data"
         :key="uid()"
     >
         <div class="list-view-products-item">
             <div x-data="ProductCard(product)" class="list-view-product-card">
                 <div class="product-card-left position-relative">
                     <a :href="productUrl" class="product-image"> 
-                        <img
-                            :src="baseImage"
-                            :class="{ 'image-placeholder': !hasBaseImage }"
-                            :alt="productName"
-                            loading="lazy"
-                        />
+                        <picture>
+                            <template x-if="imageSources.avif">
+                                <source :srcset="imageSources.avif" type="image/avif">
+                            </template>
+                            <template x-if="imageSources.webp">
+                                <source :srcset="imageSources.webp" type="image/webp">
+                            </template>
+                            <img
+                                class="product-image-img"
+                                :src="imageSources.fallback"
+                                :alt="productName"
+                                :loading="idx < 4 ? 'eager' : 'lazy'"
+                                :fetchpriority="idx < 4 ? 'high' : 'auto'"
+                                width="400"
+                                height="400"
+                            />
+                        </picture>
 
                     </a>
                     
@@ -107,32 +118,13 @@
                             <span x-text="productName"></span>
                         </a>
     
-                        @include('storefront::public.partials.product_rating')
+                        <template x-if="hasVisibleRating">
+                            @include('storefront::public.partials.product_rating')
+                        </template>
                     </div>
 
                     <div class="product-price" x-html="productPrice"></div>
-
-                    <div class="product-card-actions-parent">
-                        <template x-if="hasNoOption || isOutOfStock">
-                            <button
-                                class="btn btn-default btn-add-to-cart"
-                                :class="{ 'btn-loading': addingToCart }"
-                                :disabled="isOutOfStock"
-                                @click="addToCart"
-                            >
-                                {{ trans("storefront::product_card.add_to_cart") }}
-                            </button>
-                        </template>
-    
-                        <template x-if="!(hasNoOption || isOutOfStock)">
-                            <a
-                                :href="productUrl"
-                                class="btn btn-default btn-add-to-cart"
-                            >
-                                {{ trans("storefront::product_card.view_options") }}
-                            </a>
-                        </template>
-                    </div>
+                    <div class="product-short-description" x-text="product.short_description"></div>
                 </div>
             </div>
         </div>

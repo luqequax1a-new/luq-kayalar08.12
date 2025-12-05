@@ -30,7 +30,7 @@
                             </div>
                         @endforeach
                         
-                        <template x-for="product in products" :key="product.id">
+                        <template x-for="product in products" :key="('p-' + (product.id ?? Math.random()) + (product.variant?.uid ? '-' + product.variant.uid : ''))">
                             <div class="swiper-slide">
                                 @include('storefront::public.partials.product_card')
                             </div>

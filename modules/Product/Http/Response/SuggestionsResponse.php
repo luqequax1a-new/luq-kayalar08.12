@@ -80,7 +80,11 @@ class SuggestionsResponse implements Responsable
                 'slug' => $product->slug,
                 'name' => $this->highlight($product->name),
                 'formatted_price' => $product->variant?->formatted_price ?? $product->formatted_price,
-                'base_image' => ($product->variant && $product->variant->base_image->id) ? $product->variant->base_image : $product->base_image,
+                'base_image' => ($product->base_image && $product->base_image->id)
+                    ? $product->base_image
+                    : (($product->variant && $product->variant->base_image && $product->variant->base_image->id)
+                        ? $product->variant->base_image
+                        : $product->base_image),
                 'is_out_of_stock' => $product->variant?->isOutOfStock() ?? $product->isOutOfStock(),
                 'url' => $product->variant?->url() ?? $product->url(),
             ];

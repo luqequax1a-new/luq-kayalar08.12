@@ -1,0 +1,9 @@
+{
+    "name": "SeoBulk",
+    "alias": "seo_bulk",
+    "description": "Bulk SEO Meta Manager for Products and Categories.",
+    "priority": 110,
+    "providers": [
+        "Modules\\SeoBulk\\Providers\\SeoBulkServiceProvider"
+    ]
+}

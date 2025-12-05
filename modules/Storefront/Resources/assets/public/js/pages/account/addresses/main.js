@@ -2,6 +2,29 @@ import Errors from "../../../components/Errors";
 import sehirler from "@modules/../sehirler.json";
 import ilceler from "@modules/../ilceler.json";
 
+function trTitleCase(name) {
+    if (name === null || name === undefined) return name;
+    const mapUpperToLower = { I: "ı", İ: "i", Ç: "ç", Ş: "ş", Ğ: "ğ", Ü: "ü", Ö: "ö" };
+    let s = String(name);
+    s = s.replace(/[IİÇŞĞÜÖ]/g, (ch) => mapUpperToLower[ch] || ch);
+    s = s.toLowerCase();
+    const mapLowerToUpper = { i: "İ", ı: "I", ç: "Ç", ş: "Ş", ğ: "Ğ", ü: "Ü", ö: "Ö" };
+    return s
+        .split(/([\s\-]+)/)
+        .map((part, idx) => {
+            if (idx % 2 === 1) return part;
+            if (!part) return part;
+            const first = part.charAt(0);
+            const rest = part.slice(1);
+            const firstU = mapLowerToUpper[first] || first.toUpperCase();
+            return firstU + rest;
+        })
+        .join("");
+}
+
+const SEHIRLER = sehirler.map((s) => ({ ...s, sehir_adi: trTitleCase(s.sehir_adi) }));
+const ILCELER = ilceler.map((d) => ({ ...d, sehir_adi: trTitleCase(d.sehir_adi), ilce_adi: trTitleCase(d.ilce_adi) }));
+
 Alpine.data(
     "Addresses",
     ({ initialAddresses, initialDefaultAddress, countries }) => ({
@@ -11,14 +34,14 @@ Alpine.data(
         formOpen: false,
         editing: false,
         loading: false,
-        form: { state: "" },
+        form: {},
         states: {},
         districts: [],
-        provincesTR: null,
         errors: new Errors(),
 
         get firstCountry() {
-            return Object.keys(this.countries)[0];
+            const keys = Object.keys(this.countries);
+            return keys[0];
         },
 
         get singleCountry() {
@@ -29,10 +52,6 @@ Alpine.data(
             return Object.keys(this.addresses).length !== 0;
         },
 
-        get hasNoStates() {
-            return Object.keys(this.states).length === 0;
-        },
-
         init() {
             this.changeCountry(this.firstCountry);
 
@@ -41,15 +60,17 @@ Alpine.data(
             }
 
             this.$watch("form.state", (newState) => {
-                if (this.form.country === "TR" && this.provincesTR) {
+                if (this.form.country === "TR") {
                     const provinceName = this.states[newState];
-                    const province = this.provincesTR.find(
-                        (p) => p.name.toUpperCase() === provinceName.toUpperCase()
-                    );
-                    this.districts = province
-                        ? province.districts.map((d) => d.name)
-                        : [];
-                    this.form.city = "";
+                    const key = this.normalizeTR(provinceName);
+                    this.districts = ILCELER
+                        .filter((d) => this.normalizeTR(d.sehir_adi) === key)
+                        .map((d) => d.ilce_adi);
+                    if (!this.districts.includes(this.form.city)) {
+                        this.form.city = "";
+                    }
+                } else {
+                    this.districts = [];
                 }
             });
         },
@@ -75,49 +96,45 @@ Alpine.data(
             this.form.country = country;
             this.form.state = "";
 
-            this.fetchStates(country, () => {
-                if (
-                    country === "TR" &&
-                    this.singleCountry &&
-                    Array.isArray(FleetCart.supportedLocales) &&
-                    FleetCart.supportedLocales.length === 1
-                ) {
-                    const firstStateCode = Object.keys(this.states)[0];
-                    if (firstStateCode) {
-                        this.form.state = firstStateCode;
-                        const provinceName = this.states[firstStateCode];
-                        const districtsForProvince = ilceler
-                            .filter(
-                                (d) =>
-                                    String(d.sehir_adi).toUpperCase() ===
-                                    String(provinceName).toUpperCase()
-                            )
-                            .map((d) => d.ilce_adi);
-                        this.districts = districtsForProvince;
-                        if (this.districts.length) {
-                            this.form.city = this.districts[0];
-                        }
-                    }
+            this.fetchStates(country, (states) => {
+                this.states = states;
+                if (country !== "TR") {
+                    this.districts = [];
+                } else {
+                    this.districts = [];
                 }
             });
+        },
 
-            if (country === "TR") {
-                this.provincesTR = sehirler;
-                this.districts = [];
-            } else {
-                this.provincesTR = null;
-                this.districts = [];
-                this.form.city = "";
-            }
+        normalizeTR(s) {
+            if (!s) return s;
+            const map = { İ: 'I', ı: 'I', i: 'I', I: 'I', Ç: 'C', ç: 'c', Ş: 'S', ş: 's', Ğ: 'G', ğ: 'g', Ü: 'U', ü: 'u', Ö: 'O', ö: 'o' };
+            const t = String(s)
+                .replace(/[İıiIÇçŞşĞğÜüÖö]/g, (m) => map[m])
+                .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+                .toUpperCase();
+            return t;
         },
 
         async fetchStates(country, callback) {
             const response = await axios.get(`/countries/${country}/states`);
 
-            this.states = response.data;
-
             if (callback) {
-                callback();
+                callback(response.data);
+            }
+        },
+
+        changeCity(city) {
+            this.form.city = city;
+            if (this.form.country === "TR" && Array.isArray(this.districts) && this.districts.length) {
+                const district = ILCELER.find((d) => String(d.ilce_adi) === String(city));
+                if (district) {
+                    const key = this.normalizeTR(district.sehir_adi);
+                    const code = Object.keys(this.states || {}).find((c) => this.normalizeTR(this.states[c]) === key);
+                    if (code) {
+                        this.form.state = code;
+                    }
+                }
             }
         },
 
@@ -128,11 +145,21 @@ Alpine.data(
             this.$nextTick(() => {
                 this.form = { ...address };
 
-                this.fetchStates(address.country, () => {
+                this.fetchStates(address.country, (states) => {
+                    this.states = states;
                     this.form.state = "";
 
                     this.$nextTick(() => {
                         this.form.state = address.state;
+                        if (address.country === "TR") {
+                            const provinceName = this.states[this.form.state];
+                            const key = this.normalizeTR(provinceName);
+                            this.districts = ILCELER
+                                .filter((d) => this.normalizeTR(d.sehir_adi) === key)
+                                .map((d) => d.ilce_adi);
+                        } else {
+                            this.districts = [];
+                        }
                     });
                 });
             });
@@ -170,13 +197,15 @@ Alpine.data(
         },
 
         update() {
+            const payload = { ...this.form };
+
             axios
-                .put(`/account/addresses/${this.form.id}`, this.form)
+                .put(`/account/addresses/${payload.id}`, payload)
                 .then(({ data }) => {
                     this.formOpen = false;
                     this.editing = false;
 
-                    this.addresses[this.form.id] = data.address;
+                    this.addresses[payload.id] = data.address;
 
                     this.resetForm();
 
@@ -195,28 +224,21 @@ Alpine.data(
         },
 
         create() {
+            const payload = { ...this.form };
+
             axios
-                .post("/account/addresses", this.form)
+                .post('/account/addresses', payload)
                 .then(({ data }) => {
                     this.formOpen = false;
-
-                    let address = { [data.address.id]: data.address };
-
-                    this.addresses = {
-                        ...this.addresses,
-                        ...address,
-                    };
-
+                    this.addresses = { ...this.addresses, [data.address.id]: data.address };
                     this.resetForm();
-
-                    notify(data.message);
+                    notify(trans('account::messages.address_created'));
                 })
                 .catch(({ response }) => {
-                    if (response.status === 422) {
+                    if (response?.status === 422) {
                         this.errors.record(response.data.errors);
                     }
-
-                    notify(response.data.message);
+                    notify(response?.data?.message || trans('storefront::storefront.something_went_wrong'));
                 })
                 .finally(() => {
                     this.loading = false;
@@ -224,7 +246,7 @@ Alpine.data(
         },
 
         resetForm() {
-            this.form = { state: "" };
+            this.form = {};
         },
     })
 );

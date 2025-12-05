@@ -40,9 +40,9 @@
                             @if ($variation->type === 'text')
                                 {{ $value->label }}
                             @elseif ($variation->type === 'color')
-                                <div style="background-color: {{ $value->color }};"></div>
+                                <div style="background-color: {{ $value->color }};" role="img" aria-label="{{ $product->name }} {{ $value->label }}" title="{{ $product->name }} {{ $value->label }}"></div>
                             @elseif ($variation->type === 'image')
-                                <img src="{{ $value->image->path }}" alt="{{ $value->label }}">
+                                <img src="{{ $value->image->path }}" alt="{{ $product->name }} {{ $value->label }}">
                             @endif
                         </li>
                     @endforeach

@@ -6,6 +6,7 @@ use JsonSerializable;
 use Modules\Support\Money;
 use Modules\Tax\Entities\TaxRate;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Modules\Coupon\Entities\Coupon;
 use Modules\Product\Entities\Product;
 use Modules\Product\Entities\ProductVariant;
@@ -17,6 +18,7 @@ use Modules\Product\Services\ChosenProductVariations;
 use Darryldecode\Cart\Exceptions\InvalidItemException;
 use Darryldecode\Cart\Exceptions\InvalidConditionException;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Modules\Cart\Services\CartUpsellService;
 
 class Cart extends DarryldecodeCart implements JsonSerializable
 {
@@ -38,9 +40,122 @@ class Cart extends DarryldecodeCart implements JsonSerializable
      */
     public function clear(): void
     {
+        try {
+            \Log::info('[CART] clear.before', [
+                'session_id' => session()->getId(),
+                'count' => $this->count(),
+            ]);
+        } catch (\Throwable $e) {
+        }
+
         parent::clear();
 
         $this->clearCartConditions();
+
+        try {
+            \Log::info('[CART] clear.after', [
+                'session_id' => session()->getId(),
+                'count' => $this->count(),
+            ]);
+        } catch (\Throwable $e) {
+        }
+    }
+
+
+    /**
+     * Store an upsell item in the cart with a direct line discount.
+     *
+     * This does NOT use coupons; it simply overrides the unit price for
+     * this line and stores debug metadata under the "upsell" attribute.
+     *
+     * @param array $data
+     *
+     * @throws InvalidItemException
+     */
+    public function storeUpsell(array $data): void
+    {
+        $productId = (int) ($data['product_id'] ?? 0);
+        $variantId = $data['variant_id'] ?? null;
+        $qty = $data['qty'] ?? 1;
+        $qty = (float) (is_numeric($qty) ? $qty : 1);
+
+        if ($productId <= 0 || $qty <= 0) {
+            throw new InvalidItemException('Invalid upsell payload.');
+        }
+
+        $options = $data['options'] ?? [];
+        $options = is_array($options) ? $options : [];
+
+        $product = Product::with('files', 'categories', 'taxClass', 'variants')->findOrFail($productId);
+        $variant = null;
+        if (!empty($variantId)) {
+            $variant = $product->variants()->where('id', $variantId)->firstOrFail();
+        }
+
+        /** @var CartUpsellService $upsellService */
+        $upsellService = app(CartUpsellService::class);
+
+        $resolved = $upsellService->resolveRuleForAdd(
+            $this,
+            (int) ($data['rule_id'] ?? 0),
+            $product,
+            $variant,
+        );
+
+        if (!$resolved) {
+            throw new InvalidItemException('Upsell rule is no longer valid.');
+        }
+
+        $unitPrice = (float) $resolved['upsell_price'];
+        $originalPrice = (float) $resolved['original_price'];
+        $ruleId = $resolved['rule']->id;
+
+        $variations = [];
+        if ($variant) {
+            $uids = collect(explode('.', $variant->uids));
+            $rawVariations = $uids->map(function ($uid) {
+                return VariationValue::where('uid', $uid)->get()->pluck('id', 'variation.id');
+            });
+
+            foreach ($rawVariations as $variation) {
+                foreach ($variation as $variationId => $variationValueId) {
+                    $variations[$variationId] = $variationValueId;
+                }
+            }
+        }
+
+        $chosenVariations = new ChosenProductVariations($product, $variations);
+        $chosenOptions = new ChosenProductOptions($product, $options);
+
+        $this->add([
+            'id' => md5('upsell:rule.' . $ruleId . ":product_id.{$productId}.variant_id.{$variantId}:options." . serialize($options)),
+            'name' => $product->name,
+            'price' => $unitPrice,
+            'quantity' => (float) $qty,
+            'attributes' => [
+                'product' => $product,
+                'variant' => $variant,
+                'item' => $variant ?: $product,
+                'variations' => $chosenVariations->getEntities(),
+                'options' => $chosenOptions->getEntities(),
+                'created_at' => time(),
+                'upsell' => [
+                    'is_upsell' => true,
+                    'rule_id' => $ruleId,
+                    'original_price' => $originalPrice,
+                    'unit_price' => $unitPrice,
+                ],
+            ],
+        ]);
+
+        try {
+            \Log::info('[CART] storeUpsell.after', [
+                'session_id' => session()->getId(),
+                'count' => $this->count(),
+                'rule_id' => $ruleId,
+            ]);
+        } catch (\Throwable $e) {
+        }
     }
 
 
@@ -59,6 +174,17 @@ class Cart extends DarryldecodeCart implements JsonSerializable
     {
         $options = array_filter($options);
         $variations = [];
+
+        try {
+            \Log::info('[CART] store.before', [
+                'session_id' => session()->getId(),
+                'count' => $this->count(),
+                'product_id' => $productId,
+                'variant_id' => $variantId,
+                'qty' => $qty,
+            ]);
+        } catch (\Throwable $e) {
+        }
 
         $product = Product::with('files', 'categories', 'taxClass')->findOrFail($productId);
         $variant = ProductVariant::find($variantId);
@@ -94,6 +220,14 @@ class Cart extends DarryldecodeCart implements JsonSerializable
                 'created_at' => time(),
             ],
         ]);
+
+        try {
+            \Log::info('[CART] store.after', [
+                'session_id' => session()->getId(),
+                'count' => $this->count(),
+            ]);
+        } catch (\Throwable $e) {
+        }
     }
 
 
@@ -205,9 +339,43 @@ class Cart extends DarryldecodeCart implements JsonSerializable
     }
 
 
+    /**
+     * @throws InvalidConditionException
+     */
+    public function addCodFee($fee)
+    {
+        $this->removeCodFee();
+
+        $amount = $fee instanceof Money ? $fee->amount() : $fee;
+
+        if ($amount <= 0) {
+            return $this->codFee();
+        }
+
+        $this->condition(
+            new CartCondition([
+                'name' => 'cod_fee',
+                'type' => 'cod_fee',
+                'target' => 'total',
+                'value' => $amount,
+                'order' => 2,
+                'attributes' => [],
+            ]),
+        );
+
+        return $this->codFee();
+    }
+
+
     public function removeShippingMethod()
     {
         $this->removeConditionsByType('shipping_method');
+    }
+
+
+    public function removeCodFee()
+    {
+        $this->removeConditionsByType('cod_fee');
     }
 
 
@@ -387,6 +555,7 @@ class Cart extends DarryldecodeCart implements JsonSerializable
             'subTotal' => $this->subTotal(),
             'shippingMethodName' => $this->shippingMethod()->name(),
             'shippingCost' => $this->shippingCost(),
+            'codFee' => $this->codFee(),
             'coupon' => $this->coupon(),
             'taxes' => $this->taxes(),
             'total' => $this->total(),
@@ -420,7 +589,15 @@ class Cart extends DarryldecodeCart implements JsonSerializable
 
     public function shippingCost()
     {
-        return $this->shippingMethod()->cost();
+        $base = $this->shippingMethod()->cost();
+
+        // Eğer COD ücreti "kargoya ekle" modunda ise, kargo tutarına COD
+        // ücretini dahil et.
+        if (setting('cod_fee_display_mode') === 'add_to_shipping') {
+            return $base->add($this->codFee());
+        }
+
+        return $base;
     }
 
 
@@ -431,7 +608,12 @@ class Cart extends DarryldecodeCart implements JsonSerializable
         }
 
         $taxConditions = $this->getConditionsByType('tax');
-        $taxRates = TaxRate::whereIn('id', $this->getTaxRateIds($taxConditions))->get();
+        $ids = $this->getTaxRateIds($taxConditions)->values()->all();
+        sort($ids);
+        $cacheKey = 'tax_rates:'.implode('-', $ids);
+        $taxRates = Cache::remember($cacheKey, 600, function () use ($ids) {
+            return TaxRate::whereIn('id', $ids)->get();
+        });
 
         return $taxConditions->map(function ($taxCondition) use ($taxRates) {
             $taxRate = $taxRates->where('id', $taxCondition->getAttribute('tax_rate_id'))->first();
@@ -447,10 +629,45 @@ class Cart extends DarryldecodeCart implements JsonSerializable
     }
 
 
+    public function codFee()
+    {
+        $condition = $this->getConditionsByType('cod_fee')->first();
+
+        if (!$condition) {
+            return Money::inDefaultCurrency(0);
+        }
+
+        $value = (float) $condition->getValue();
+
+        if ($value <= 0) {
+            return Money::inDefaultCurrency(0);
+        }
+
+        return Money::inDefaultCurrency($value);
+    }
+
+
     public function total()
     {
-        return $this->subTotal()
-            ->add($this->shippingMethod()->cost())
+        $subTotal = $this->subTotal();
+
+        // Some pages (cart / first load) may not have a shipping method selected yet.
+        // Be defensive and fallback to zero shipping cost in that case.
+        $shippingMethod = $this->hasShippingMethod() ? $this->shippingMethod() : null;
+
+        $shippingCost = $shippingMethod
+            ? $this->shippingCost()
+            : Money::inDefaultCurrency(0);
+
+        // Eğer COD ücreti kargo satırına ekleniyorsa (add_to_shipping), toplam
+        // hesaplanırken ayrıca eklenmemelidir.
+        $codFee = setting('cod_fee_display_mode') === 'add_to_shipping'
+            ? Money::inDefaultCurrency(0)
+            : $this->codFee();
+
+        return $subTotal
+            ->add($shippingCost)
+            ->add($codFee)
             ->subtract($this->coupon()->value())
             ->add($this->tax());
     }

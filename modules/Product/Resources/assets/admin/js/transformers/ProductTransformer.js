@@ -9,7 +9,9 @@ export default class {
     }
 
     transformMedia() {
-        this.data.media = this.data.media.map((data) => data.id);
+        this.data.media = (this.data.media || [])
+            .filter((m) => !!m && !!m.id && !this.isVideoPath(m.path))
+            .map((data) => data.id);
     }
 
     transformAttributes() {
@@ -24,6 +26,88 @@ export default class {
         this.data.downloads = this.data.downloads
             .filter(({ id }) => id !== null)
             .map(({ id }) => id);
+    }
+
+    transformGalleryItems() {
+        if (!Array.isArray(this.data.gallery_items)) return;
+        const images = [];
+        const videos = [];
+        this.data.gallery_items.forEach((item, index) => {
+            if (item && item.kind === 'video') {
+                videos.push({
+                    id: item.id || null,
+                    product_id: this.data.id || null,
+                    variant_id: item.variant_id || null,
+                    type: 'video',
+                    path: item.path || '',
+                    poster: item.poster || '',
+                    position: Number.isFinite(item.position) ? item.position : index,
+                    // is_active dropped; always show
+                });
+            } else if (item && item.kind === 'image') {
+                images.push({ id: item.id || null, path: item.path || '' });
+            }
+        });
+        this.data.media = images;
+        this.data.product_media = videos;
+    }
+
+    isVideoPath(path) {
+        try {
+            const raw = String(path || '').split('?')[0];
+            const ext = raw.split('.').pop().toLowerCase();
+            return ['mp4','webm','ogg','ogv'].includes(ext);
+        } catch (_) {
+            return false;
+        }
+    }
+
+    collectProductMediaFromForm() {
+        const videos = [];
+        const images = [];
+        (this.data.media || []).forEach((m, index) => {
+            if (!m || !m.path) return;
+            if (this.isVideoPath(m.path)) {
+                videos.push({
+                    id: m.id || null,
+                    product_id: this.data.id || null,
+                    variant_id: m.variant_id || null,
+                    type: 'video',
+                    path: m.path || '',
+                    poster: (typeof m.poster === 'string' ? m.poster : (m.poster?.path || '')),
+                    position: Number.isFinite(m.position) ? m.position : index,
+                    is_active: 1,
+                });
+            } else {
+                images.push(m);
+            }
+        });
+        this.data.media = images;
+        this.data.product_media = videos;
+    }
+
+    transformProductMedia() {
+        const sanitize = (item, index) => {
+            const out = {
+                id: item.id || null,
+                product_id: item.product_id || null,
+                variant_id: item.variant_id || null,
+                type: item.type === 'video' ? 'video' : 'image',
+                path: item.path || '',
+                poster: item.poster || (item.poster?.path || ''),
+                position: Number.isFinite(item.position) ? item.position : index,
+                is_active: item.is_active === false ? 0 : 1,
+            };
+            return out;
+        };
+
+        if (Array.isArray(this.data.product_media)) {
+            this.data.product_media = this.data.product_media
+                .filter((m) => !!m && !!m.path)
+                .map((m, i) => sanitize(m, i));
+        } else {
+            this.data.product_media = [];
+        }
     }
 
     transformVariations() {
@@ -137,12 +221,18 @@ export default class {
             };
         }
 
+        this.collectProductMediaFromForm();
         this.transformMedia();
+        this.transformProductMedia();
         this.transformAttributes();
         this.transformDownloads();
         this.transformVariations();
         this.transformVariants();
         this.transformOptions();
+
+        if (typeof this.data.list_variants_separately !== 'undefined') {
+            this.data.list_variants_separately = this.data.list_variants_separately ? 1 : 0;
+        }
 
         return this.data;
     }

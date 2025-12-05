@@ -187,7 +187,9 @@ trait ModelAccessors
     public function getRatingPercentAttribute()
     {
         if ($this->relationLoaded('reviews')) {
-            return ($this->reviews->avg->rating / 5) * 100;
+            $avg = $this->reviews->avg('rating');
+            return $avg ? ($avg / 5) * 100 : 0;
         }
+        return 0;
     }
 }

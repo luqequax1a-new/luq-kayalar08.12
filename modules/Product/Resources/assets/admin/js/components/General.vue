@@ -98,6 +98,64 @@
             </div>
 
             <div class="form-group row">
+                <label for="primary-category-id" class="col-sm-12 control-label text-left">
+                    Default Category
+                </label>
+
+                <div class="col-sm-6">
+                    <select
+                        name="primary_category_id"
+                        id="primary-category-id"
+                        v-model="form.primary_category_id"
+                        ref="primaryCategoryField"
+                    >
+                        <option value="">
+                            {{ trans("admin::admin.form.please_select") }}
+                        </option>
+
+                        <option
+                            v-for="(category, index) in categories"
+                            :key="index"
+                            :value="category.value"
+                        >
+                            {{ category.name }}
+                        </option>
+                    </select>
+
+                    <span
+                        class="help-block text-red"
+                        v-if="errors.has('primary_category_id')"
+                        v-text="errors.get('primary_category_id')"
+                    ></span>
+                </div>
+            </div>
+
+            <div class="form-group row">
+                <label for="google-taxonomy" class="col-sm-12 control-label text-left">
+                    Google Ürün Kategorisi
+                </label>
+
+                <div class="col-sm-6">
+                    <select
+                        name="google_product_category_path"
+                        id="google-taxonomy"
+                        v-model="form.google_product_category_path"
+                        ref="googleTaxonomyField"
+                    >
+                        <option :value="form.google_product_category_path" v-if="form.google_product_category_path">
+                            {{ form.google_product_category_path }}
+                        </option>
+                    </select>
+
+                    <span
+                        class="help-block text-red"
+                        v-if="errors.has('google_product_category_path')"
+                        v-text="errors.get('google_product_category_path')"
+                    ></span>
+                </div>
+            </div>
+
+            <div class="form-group row">
                 <label
                     for="categories"
                     class="col-sm-12 control-label text-left"
@@ -312,10 +370,12 @@ const textEditor = ref(null);
 const brands = ref(FleetCart.data["brands"] ?? {});
 const categories = ref(FleetCart.data["categories"] ?? {});
 const categoriesField = ref(null);
+const primaryCategoryField = ref(null);
 const taxClasses = FleetCart.data["tax-classes"] ?? {};
 const units = ref(FleetCart.data["units"] ?? {});
 const tags = ref(FleetCart.data["tags"] ?? {});
 const tagsField = ref(null);
+const googleTaxonomyField = ref(null);
 
 const { form, shouldResetForm, errors, focusField } = useForm();
 const { setProductSlug } = useProductMethods();
@@ -376,6 +436,70 @@ function initCategoriesSelectize() {
     });
 }
 
+function initPrimaryCategorySelectize() {
+    $(primaryCategoryField.value).selectize({
+        delimiter: ",",
+        persist: true,
+        selectOnTab: true,
+        allowEmptyOption: true,
+        onChange: (value) => {
+            form.primary_category_id = value || null;
+        },
+        onInitialize() {
+            $("#primary-category-id")
+                .next()
+                .find("[data-value]")
+                .each((_, el) => {
+                    $(el).html($(el).text().replace(/¦––\s/g, ""));
+                });
+        },
+    });
+}
+
+function initGoogleTaxonomySelectize() {
+    $(googleTaxonomyField.value).selectize({
+        delimiter: ",",
+        persist: true,
+        selectOnTab: true,
+        allowEmptyOption: true,
+        maxItems: 1,
+        valueField: 'id',
+        labelField: 'text',
+        searchField: 'text',
+        preload: 'focus',
+        openOnFocus: true,
+        loadThrottle: 250,
+        load: function(query, callback) {
+            const q = (query || '').trim();
+            $.ajax({
+                url: '/admin/google-taxonomy',
+                data: q ? { q } : {},
+                success: function(resp) {
+                    callback(resp && resp.results ? resp.results : []);
+                },
+                error: function() { callback([]); }
+            });
+        },
+        onChange: (value) => {
+            form.google_product_category_path = value || null;
+        },
+        onItemAdd(value) {
+            const item = this.getItem(value)[0];
+            if (item) {
+                item.setAttribute('title', value);
+            }
+        },
+        onInitialize() {
+            const val = form.google_product_category_path;
+            if (val) {
+                const selectize = $(googleTaxonomyField.value)[0].selectize;
+                selectize.addOption({ id: val, text: val });
+                selectize.setValue(val);
+            }
+        },
+    });
+}
+
 function initTagsSelectize() {
     $(tagsField.value).selectize({
         plugins: ["remove_button"],
@@ -417,6 +541,36 @@ watch(shouldResetForm, () => {
 onMounted(() => {
     initTextEditor();
     initCategoriesSelectize();
+    initPrimaryCategorySelectize();
     initTagsSelectize();
+    initGoogleTaxonomySelectize();
+
+    if (!form.primary_category_id && Array.isArray(form.categories) && form.categories.length > 0) {
+        form.primary_category_id = form.categories[0];
+    }
+});
+
+watch(() => form.categories, (vals) => {
+    if (!vals || vals.length === 0) {
+        form.primary_category_id = null;
+        return;
+    }
+    if (!vals.includes(form.primary_category_id)) {
+        form.primary_category_id = vals[0];
+    }
+}, { deep: true });
+
+watch(() => form.primary_category_id, (val) => {
+    if (!val) return;
+    if (!Array.isArray(form.categories)) {
+        form.categories = [];
+    }
+    if (!form.categories.includes(val)) {
+        form.categories = [...form.categories, val];
+        const selectize = $(categoriesField.value)[0]?.selectize;
+        if (selectize) {
+            selectize.addItem(val);
+        }
+    }
 });
 </script>

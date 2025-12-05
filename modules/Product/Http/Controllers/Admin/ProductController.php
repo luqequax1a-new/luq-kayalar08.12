@@ -48,6 +48,9 @@ class ProductController
     protected string|array $validation = SaveProductRequest::class;
 
 
+    
+
+
     /**
      * Store a newly created resource in storage.
      *
@@ -60,6 +63,8 @@ class ProductController
         $entity = $this->getModel()->create(
             $this->getRequest('store')->all()
         );
+
+        $this->syncProductMedia($entity, request('product_media', []));
 
         $this->searchable($entity);
 
@@ -74,6 +79,8 @@ class ProductController
                 [
                     'success' => true,
                     'message' => $message,
+                    'product_id' => $entity->id,
+                    'redirect_url' => route("{$this->getRoutePrefix()}.edit", $entity->id),
                 ],
                 200
             );
@@ -125,6 +132,8 @@ class ProductController
             $this->getRequest('update')->all()
         );
 
+        $this->syncProductMedia($entity, request('product_media', []));
+
         if ($shouldCreateRedirect && $newSlug && $oldSlug && $newSlug !== $oldSlug && (!$requestOldSlug || $requestOldSlug === $oldSlug)) {
             try {
                 $sourcePath = '/products/' . ltrim($oldSlug, '/');
@@ -170,6 +179,83 @@ class ProductController
         }
     }
 
+    private function syncProductMedia(Product $product, array $payload): void
+    {
+        $keepIds = [];
+        $position = 0;
+
+        foreach ($payload as $row) {
+            if (empty($row['path'])) {
+                continue;
+            }
+
+            $ext = strtolower(pathinfo(parse_url($row['path'], PHP_URL_PATH) ?? '', PATHINFO_EXTENSION));
+            $isVideo = in_array($ext, ['mp4','webm','ogg']);
+            $poster = $row['poster'] ?? null;
+            if ($isVideo && (!$poster || !is_string($poster))) {
+                try {
+                    $poster = media_variant_url($row, 400, 'webp') ?? media_variant_url($row, 400, 'jpg');
+                } catch (\Throwable $e) {}
+                if (!$poster) {
+                    try {
+                        $rawPath = parse_url($row['path'] ?? '', PHP_URL_PATH) ?? '';
+                        $dir = dirname($rawPath);
+                        $name = pathinfo($rawPath, PATHINFO_FILENAME);
+                        $disk = config('filesystems.default');
+                        $webpRel = $dir . '/' . $name . '-400w.webp';
+                        $jpgRel = $dir . '/' . $name . '-400w.jpg';
+                        if (\Illuminate\Support\Facades\Storage::disk($disk)->exists($webpRel)) {
+                            $poster = \Illuminate\Support\Facades\Storage::disk($disk)->url($webpRel);
+                        } elseif (\Illuminate\Support\Facades\Storage::disk($disk)->exists($jpgRel)) {
+                            $poster = \Illuminate\Support\Facades\Storage::disk($disk)->url($jpgRel);
+                        }
+                    } catch (\Throwable $e) {}
+                }
+                if (!$poster) {
+                    if (!empty($row['variant_id'])) {
+                        $variant = $product->variants()->withoutGlobalScope('active')->where('id', (int) $row['variant_id'])->first();
+                        $poster = optional($variant?->base_image)->path ?: (optional($product->base_image)->path ?: asset('build/assets/image-placeholder.png'));
+                    } else {
+                        $poster = optional($product->base_image)->path ?: asset('build/assets/image-placeholder.png');
+                    }
+                }
+            }
+
+            $data = [
+                'product_id' => $product->id,
+                'variant_id' => $row['variant_id'] ?? null,
+                'type' => $isVideo ? 'video' : 'image',
+                'path' => $row['path'],
+                'poster' => $poster,
+                'position' => isset($row['position']) ? (int) $row['position'] : $position,
+                'is_active' => 1,
+            ];
+
+            $position++;
+
+            if (!empty($row['id'])) {
+                $media = $product->productMedia()->where('id', (int) $row['id'])->first();
+                if ($media) {
+                    $media->update($data);
+                    $keepIds[] = $media->id;
+                    continue;
+                }
+            }
+
+            $media = $product->productMedia()->create($data);
+            $keepIds[] = $media->id;
+        }
+
+        if (!empty($keepIds)) {
+            $product->productMedia()->whereNotIn('id', $keepIds)->delete();
+        } else {
+            // If empty payload, remove all existing media
+            $product->productMedia()->delete();
+        }
+
+        $product->load('productMedia');
+    }
+
     public function status($id)
     {
         $entity = $this->getEntity($id);
@@ -199,30 +285,6 @@ class ProductController
 
         foreach ($this->getModel()->withoutGlobalScope('active')->whereIn('id', $idList)->get() as $product) {
             try {
-                $redirectType = request('redirect.type');
-                $statusCode = (int) (request('redirect.status_code') ?? 301);
-                $targetId = request('redirect.target_id');
-                $targetUrl = request('redirect.target_url');
-                $sourcePath = '/products/' . ltrim($product->slug, '/');
-
-                if ($redirectType && $redirectType !== 'none') {
-                    $targetType = $redirectType;
-                    if ($redirectType === 'home') {
-                        $targetUrl = '/';
-                    }
-
-                    \Modules\Product\Entities\UrlRedirect::updateOrCreate(
-                        ['source_path' => $sourcePath],
-                        [
-                            'target_type' => $targetType,
-                            'target_id' => $targetId,
-                            'target_url' => $targetUrl,
-                            'status_code' => in_array($statusCode, [301,302,410,404]) ? $statusCode : 301,
-                            'is_active' => true,
-                        ]
-                    );
-                }
-
                 // Detach pivot relations
                 if (method_exists($product, 'categories')) {
                     $product->categories()->detach();
@@ -283,9 +345,13 @@ class ProductController
         $entity = $this->getEntity($id);
 
         $payload = request()->all();
+        $allowDecimal = ($entity->saleUnit && (bool) $entity->saleUnit->is_decimal_stock);
 
         if (array_key_exists('qty', $payload)) {
             $qty = $payload['qty'];
+            if (!$allowDecimal) {
+                $qty = is_numeric($qty) ? (int) floor((float) $qty) : 0;
+            }
             $entity->withoutEvents(function () use ($entity, $qty) {
                 $entity->update(['qty' => $qty]);
             });
@@ -296,7 +362,9 @@ class ProductController
                 $variant = $entity->variants()->withoutGlobalScope('active')->where('id', $vid)->first();
                 if ($variant) {
                     $update = [];
-                    if (isset($attrs['qty'])) $update['qty'] = $attrs['qty'];
+                    if (isset($attrs['qty'])) {
+                        $update['qty'] = $allowDecimal ? $attrs['qty'] : (is_numeric($attrs['qty']) ? (int) floor((float) $attrs['qty']) : 0);
+                    }
                     if (isset($attrs['in_stock'])) $update['in_stock'] = $attrs['in_stock'] ? 1 : 0;
                     if (isset($attrs['manage_stock'])) $update['manage_stock'] = $attrs['manage_stock'] ? 1 : 0;
 

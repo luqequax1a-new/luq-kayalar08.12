@@ -43,3 +43,36 @@ Route::get('orders/{order}/print', [
     'uses' => 'OrderPrintController@show',
     'middleware' => 'can:admin.orders.show',
 ]);
+
+// Manual Orders module disabled
+
+Route::group(['prefix' => 'cart-links', 'as' => 'admin.cart_links.'], function () {
+    Route::get('create', [
+        'as' => 'create',
+        'uses' => 'CartLinkController@create',
+        'middleware' => 'can:admin.cart_links.create',
+    ]);
+
+        Route::post('store', [
+            'as' => 'store',
+            'uses' => 'CartLinkController@store',
+            'middleware' => 'can:admin.cart_links.create',
+        ]);
+
+        Route::post('preview', [
+            'as' => 'preview',
+            'uses' => 'CartLinkController@preview',
+            'middleware' => 'can:admin.cart_links.create',
+        ]);
+
+    Route::get('products/search', [
+        'as' => 'products.search',
+        'uses' => 'ManualOrderController@searchProducts',
+        'middleware' => 'can:admin.cart_links.create',
+    ]);
+    Route::get('customers/search', [
+        'as' => 'customers.search',
+        'uses' => 'ManualOrderController@searchCustomers',
+        'middleware' => 'can:admin.cart_links.create',
+    ]);
+});

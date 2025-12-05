@@ -186,8 +186,12 @@
 </footer>
 
 @push('scripts')
-    <script type="module">
-        $('.store-phone').attr('href', `tel:{{ setting('store_phone') }}`);
-        $('.store-email').attr('href', `mailto:{{ setting('store_email') }}`);
+    <script>
+        window.addEventListener('load', function () {
+            if (window.$) {
+                $('.store-phone').attr('href', `tel:{{ setting('store_phone') }}`);
+                $('.store-email').attr('href', `mailto:{{ setting('store_email') }}`);
+            }
+        });
     </script>
 @endpush

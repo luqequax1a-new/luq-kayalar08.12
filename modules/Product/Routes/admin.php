@@ -58,6 +58,12 @@ Route::get('products/index/table', [
     'uses' => 'ProductController@table',
     'middleware' => 'can:admin.products.index',
 ]);
+
+Route::get('google-taxonomy', [
+    'as' => 'admin.google_taxonomy.index',
+    'uses' => 'TaxonomyController@index',
+    'middleware' => 'can:admin.products.index',
+]);
 Route::get('products/{id}/inventory', [
     'as' => 'admin.products.inventory.show',
     'uses' => 'ProductController@inventory',

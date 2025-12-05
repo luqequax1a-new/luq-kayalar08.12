@@ -10,3 +10,15 @@ $("#order-status").on("change", (e) => {
             error(response.data.message);
         });
 });
+
+import GLightbox from "glightbox";
+import "glightbox/dist/css/glightbox.css";
+
+document.addEventListener("DOMContentLoaded", () => {
+    GLightbox({
+        selector: ".glightbox",
+        touchNavigation: true,
+        loop: false,
+        closeOnOutsideClick: true,
+    });
+});

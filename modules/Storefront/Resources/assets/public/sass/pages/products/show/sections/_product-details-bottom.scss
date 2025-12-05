@@ -213,7 +213,7 @@
         position: relative;
 
         .product-details-tab-overflow {
-            overflow: auto;
+            overflow: visible;
             padding-bottom: 10px;
 
             &::-webkit-scrollbar {
@@ -228,31 +228,33 @@
             }
 
             .nav-tabs {
-                flex-wrap: nowrap;
+                display: flex;
+                flex-wrap: wrap;
                 flex-direction: row;
-                justify-content: unset;
+                justify-content: center;
                 margin-left: auto;
                 margin-right: auto;
-                width: max-content;
+                width: 100%;
                 position: relative;
                 z-index: 2;
 
                 .nav-item {
-                    white-space: nowrap;
+                    flex: 0 0 50%;
+                    max-width: 50%;
+                    white-space: normal;
+                    text-align: center;
+                    margin: 0;
+                }
+
+                .nav-link {
+                    display: inline-block;
+                    width: 100%;
+                    padding: 12px 6px;
                 }
             }
 
             hr {
-                display: block;
-                height: 0;
-                background: transparent;
-                position: absolute;
-                width: 100%;
-                top: 39px;
-                left: 0;
-                border: unset;
-                border-bottom: 1px solid #e5e5e5;
-                opacity: 1;
+                display: none;
             }
         }
     }

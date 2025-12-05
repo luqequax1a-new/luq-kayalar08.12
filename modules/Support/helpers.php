@@ -312,7 +312,12 @@ if (!function_exists('currency_symbol')) {
 
     function currency_symbol(string $currencyCode): string
     {
-        return Currencies::getSymbol($currencyCode);
+        $code = strtoupper($currencyCode);
+        if ($code === 'TRY') {
+            return '₺';
+        }
+        $symbol = Currencies::getSymbol($currencyCode);
+        return $symbol ?: $code;
     }
 }
 

@@ -16,5 +16,6 @@ class AddPlacedOrderToSession
     public function handle($event)
     {
         session()->flash('placed_order', $event->order);
+        session()->put('placed_order_id', $event->order->id);
     }
 }

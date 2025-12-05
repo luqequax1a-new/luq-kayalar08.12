@@ -32,6 +32,7 @@ class Order extends Model
     const PENDING_PAYMENT = 'pending_payment';
     const PROCESSING = 'processing';
     const REFUNDED = 'refunded';
+    const SHIPPED = 'shipped';
 
     /**
      * The attributes that aren't mass assignable.
@@ -121,6 +122,16 @@ class Order extends Model
         return $this->belongsTo(Coupon::class)->withTrashed();
     }
 
+    public function shippingAddress()
+    {
+        return $this->belongsTo(\Modules\Address\Entities\Address::class, 'shipping_address_id');
+    }
+
+    public function billingAddress()
+    {
+        return $this->belongsTo(\Modules\Address\Entities\Address::class, 'billing_address_id');
+    }
+
 
     public function getSubTotalAttribute($subTotal)
     {
@@ -178,6 +189,12 @@ class Order extends Model
     }
 
 
+    public function isCodPayment(): bool
+    {
+        return ($this->attributes['payment_method'] ?? null) === 'cod';
+    }
+
+
     public function getCustomerFullNameAttribute()
     {
         return "{$this->customer_first_name} {$this->customer_last_name}";
@@ -210,13 +227,25 @@ class Order extends Model
 
     public function getBillingStateNameAttribute()
     {
-        return State::name($this->billing_country, $this->billing_state);
+        return $this->formatState(State::name($this->billing_country, $this->billing_state));
     }
 
 
     public function getShippingStateNameAttribute()
     {
-        return State::name($this->shipping_country, $this->shipping_state);
+        return $this->formatState(State::name($this->shipping_country, $this->shipping_state));
+    }
+
+
+    public function getBillingCityTitleAttribute()
+    {
+        return $this->formatState($this->billing_city);
+    }
+
+
+    public function getShippingCityTitleAttribute()
+    {
+        return $this->formatState($this->shipping_city);
     }
 
 
@@ -229,6 +258,7 @@ class Order extends Model
     public function storeProducts(CartItem $cartItem)
     {
         $unit = $cartItem->product->getEffectiveUnit();
+        $imagePath = $cartItem->variant?->base_image?->path ?? $cartItem->product->base_image?->path ?? null;
         $orderProduct = $this->products()->create([
             'product_id' => $cartItem->product->id,
             'product_variant_id' => $cartItem->variant?->id,
@@ -242,6 +272,7 @@ class Order extends Model
             'product_name' => $cartItem->product->name,
             'product_slug' => $cartItem->product->slug,
             'product_sku' => $cartItem->variant?->sku ?? $cartItem->product->sku,
+            'product_image_path' => $imagePath,
         ]);
 
         $orderProduct->storeVariations($cartItem->variations);
@@ -301,7 +332,17 @@ class Order extends Model
      */
     public function table()
     {
-        $query = $this->newQuery()->select(['id', 'customer_first_name', 'customer_last_name', 'customer_email', 'currency', 'total', 'status', 'created_at']);
+        $query = $this->newQuery()->select([
+            'id',
+            'customer_first_name',
+            'customer_last_name',
+            'customer_email',
+            'payment_method',
+            'currency',
+            'total',
+            'status',
+            'created_at',
+        ]);
 
         return new OrderTable($query);
     }
@@ -335,5 +376,58 @@ class Order extends Model
             'total' => $orders->sumTotal(),
             'total_orders' => $orders->count(),
         ];
+    }
+    
+    public function transitionTo(string $status): void
+    {
+        if ($status === $this->status) {
+            return;
+        }
+        $this->update(['status' => $status]);
+        event(new \Modules\Order\Events\OrderStatusChanged($this));
+    }
+    
+    private function formatState($name)
+    {
+        if ($name === null || $name === '') {
+            return $name;
+        }
+        $mapUpperToLower = [
+            'I' => 'ı',
+            'İ' => 'i',
+            'Ç' => 'ç',
+            'Ş' => 'ş',
+            'Ğ' => 'ğ',
+            'Ü' => 'ü',
+            'Ö' => 'ö',
+        ];
+        $s = strtr($name, $mapUpperToLower);
+        $s = mb_strtolower($s, 'UTF-8');
+        $parts = preg_split('/([\s\-]+)/u', $s, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $mapLowerToUpper = [
+            'i' => 'İ',
+            'ı' => 'I',
+            'ç' => 'Ç',
+            'ş' => 'Ş',
+            'ğ' => 'Ğ',
+            'ü' => 'Ü',
+            'ö' => 'Ö',
+        ];
+        $res = '';
+        foreach ($parts as $idx => $p) {
+            if ($idx % 2 === 0) {
+                if ($p === '') {
+                    $res .= $p;
+                    continue;
+                }
+                $first = mb_substr($p, 0, 1, 'UTF-8');
+                $rest = mb_substr($p, 1, null, 'UTF-8');
+                $firstU = $mapLowerToUpper[$first] ?? mb_strtoupper($first, 'UTF-8');
+                $res .= $firstU . $rest;
+            } else {
+                $res .= $p;
+            }
+        }
+        return $res;
     }
 }

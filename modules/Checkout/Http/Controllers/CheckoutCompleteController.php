@@ -162,6 +162,31 @@ class CheckoutCompleteController
     public function show()
     {
         $order = session('placed_order');
+        if (!$order && session()->has('placed_order_id')) {
+            $order = Order::find(session('placed_order_id'));
+        }
+        if (!$order && request()->has('orderId')) {
+            $order = Order::find(request('orderId'));
+        }
+
+        if ($order) {
+            if (auth()->check() && (int)$order->customer_id !== (int)auth()->id()) {
+                return redirect()->route('home');
+            }
+            if (!auth()->check()) {
+                $placedId = session('placed_order_id');
+                if ((int)$placedId !== (int)$order->id) {
+                    return redirect()->route('home');
+                }
+            }
+        }
+
+        Log::channel('checkout')->info('checkout.complete_page', [
+            'order_id' => $order ? $order->id : null,
+            'user_id' => optional(auth()->user())->id,
+            'session_id' => request()->session()->getId(),
+            'referer' => request()->headers->get('referer'),
+        ]);
 
         return $order
             ? view('storefront::public.checkout.complete.show', compact('order'))

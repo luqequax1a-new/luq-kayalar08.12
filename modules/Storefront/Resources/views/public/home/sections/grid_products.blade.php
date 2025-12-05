@@ -28,7 +28,7 @@
 
                         <template
                             x-for="product in products"
-                            :key="product.id"
+                            :key="('p-' + (product.id ?? Math.random()) + (product.variant?.uid ? '-' + product.variant.uid : ''))"
                         >
                             <div class="swiper-slide">
                                 <div class="grid-products-item"> 

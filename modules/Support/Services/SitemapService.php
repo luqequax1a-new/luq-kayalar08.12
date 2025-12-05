@@ -45,20 +45,39 @@ class SitemapService
 
     public function generateSitemaps()
     {
-        $this->generateForProducts();
-        $this->generateForCategories();
-        $this->generateForBrands();
-        $this->generateForPages();
-        $this->generateForBlogPosts();
-        $this->generateForBlogCategories();
+        if (setting('support.sitemap.include_products', true)) {
+            $this->generateForProducts();
+        }
+
+        if (setting('support.sitemap.include_categories', true)) {
+            $this->generateForCategories();
+        }
+
+        if (setting('support.sitemap.include_brands', true)) {
+            $this->generateForBrands();
+        }
+
+        if (setting('support.sitemap.include_pages', true)) {
+            $this->generateForPages();
+        }
+
+        if (setting('support.sitemap.include_blog_posts', true)) {
+            $this->generateForBlogPosts();
+        }
+
+        if (setting('support.sitemap.include_blog_categories', true)) {
+            $this->generateForBlogCategories();
+        }
     }
 
 
     private function generateForProducts()
     {
         $counter = 1;
+        $chunkSize = (int) setting('support.sitemap.products_per_sitemap', 10000);
+        $chunkSize = max(100, min($chunkSize, 50000));
 
-        Product::chunk('10000', function ($products) use (&$counter) {
+        Product::chunk($chunkSize, function ($products) use (&$counter) {
             $outputDir = public_path('sitemaps');
             $sitemapName = 'sitemap_products_' . $counter++ . '.xml';
 

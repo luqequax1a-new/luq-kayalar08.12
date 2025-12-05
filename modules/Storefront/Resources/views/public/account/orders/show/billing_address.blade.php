@@ -1,17 +1,23 @@
-<div class="col-lg-6 col-sm-9">
+<div class="col-lg-6 col-sm-6">
     <div class="order-billing-details">
         <h4>{{ trans('storefront::account.view_order.billing_address') }}</h4>
 
-        <address>
-            <span>{{ $order->billing_full_name }}</span>
-            <span>{{ $order->billing_address_1 }}</span>
-
-            @if ($order->billing_address_2)
-                <span>{{ $order->billing_address_2 }}</span>
-            @endif
-
-            <span>{{ $order->billing_city }}, {!! $order->billing_state_name !!} {{ $order->billing_zip }}</span>
-            <span>{{ $order->billing_country_name }}</span>
-        </address>
+        @php($billing = $order->billingAddress)
+        @if ($billing && $order->shipping_address_id !== $order->billing_address_id)
+            <address class="d-flex flex-column cursor-default">
+                <div>
+                    <div>{{ $billing->company_name }}</div>
+                    <div>Vergi No: {{ $billing->tax_number }}</div>
+                    <div>Vergi Dairesi: {{ $billing->tax_office }}</div>
+                    <div>{{ $billing->address_line ?? $billing->address_1 }}</div>
+                    <div>{{ $billing->city ?? $billing->city_id }} / {{ $billing->state ?? $billing->district_id }}</div>
+                    @if ($billing->phone)
+                        <div>{{ $billing->phone }}</div>
+                    @endif
+                </div>
+            </address>
+        @else
+            <p>Fatura adresi kargo adresi ile aynıdır.</p>
+        @endif
     </div>
 </div>

@@ -187,7 +187,7 @@ class Money implements JsonSerializable
         $amount = $numberFormatter->formatCurrency($this->amount, $currency);
 
         if (str_contains($amount, $currency)) {
-            $symbol = \Symfony\Component\Intl\Currencies::getSymbol($currency, $locale);
+            $symbol = ($currency === 'TRY') ? '₺' : \Symfony\Component\Intl\Currencies::getSymbol($currency, $locale);
             $amount = str_replace($currency, $symbol, $amount);
         }
 

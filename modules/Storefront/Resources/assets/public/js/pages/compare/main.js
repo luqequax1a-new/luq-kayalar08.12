@@ -21,7 +21,17 @@ Alpine.data("Compare", () => ({
     },
 
     hideSkeleton() {
-        document.querySelector(".compare-skeleton").remove();
+        const el = document.querySelector(".compare-skeleton");
+
+        if (!el) {
+            return;
+        }
+
+        if (typeof el.remove === "function") {
+            el.remove();
+        } else if (el.parentNode) {
+            el.parentNode.removeChild(el);
+        }
     },
 
     badgeClass(product) {

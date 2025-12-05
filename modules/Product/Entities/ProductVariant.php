@@ -138,6 +138,11 @@ class ProductVariant extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function productMedia()
+    {
+        return $this->hasMany(ProductMedia::class, 'variant_id')->orderBy('position');
+    }
+
 
     public function getPriceAttribute($price)
     {

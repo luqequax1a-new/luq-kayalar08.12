@@ -1,16 +1,26 @@
 <div class="product-gallery position-relative align-self-start"> 
-    @php($mediaCount = $product->variant->media->count() + $product->media->count())
+    <div class="product-gallery-wrapper" style="position: relative;">
+    </div>
+
     <div
         class="product-gallery-preview-wrap position-relative overflow-hidden"
         :class="{ 'visible-variation-image': hasAnyVariationImage }"
     >
+        @include('storefront::public.partials.products.tag_badges', [
+            'product' => $product,
+            'context' => 'detail',
+        ])
+
         <template x-if="hasAnyVariationImage">
             <img :src="variationImagePath" class="variation-image" :alt="productName">
         </template>
 
         <div class="product-gallery-preview swiper">
             <div class="swiper-wrapper">
-                @if ($product->media->isEmpty() && $product->variant->media->isEmpty())
+                @php($videoMedia = $product->productMedia()->videos()->active()->orderBy('position')->get())
+                @php($hasAnyMedia = $product->variant->media->isNotEmpty() || $product->media->isNotEmpty())
+
+                @if (!$hasAnyMedia)
                     <div class="swiper-slide">
                         <div class="gallery-preview-slide">
                             <div class="gallery-preview-item" @click="triggerGalleryPreviewLightbox($event)">
@@ -55,18 +65,50 @@
                             </div>
                         </div>
                     @endforeach
+
+                    @foreach ($videoMedia as $video)
+                        @php(
+                            $poster = $video->poster
+                                ?? optional($product->variant)->base_image?->path
+                                ?? $product->base_image?->path
+                                ?? asset('build/assets/image-placeholder.png')
+                        )
+                        <div class="swiper-slide">
+                            <div class="gallery-preview-slide">
+                                <div class="gallery-preview-item gallery-preview-item--video">
+                                    <video
+                                        class="product-main-media product-main-media--video"
+                                        controls
+                                        playsinline
+                                        preload="metadata"
+                                        poster="{{ $poster }}"
+                                        style="width: 100%; height: 100%; object-fit: cover;"
+                                    >
+                                        <source src="{{ $video->path }}" type="video/mp4">
+                                    </video>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
                 @endif
             </div>
-            @if ($mediaCount > 1)
-                <div class="swiper-button-next"></div>
-                <div class="swiper-button-prev"></div>
-                <div class="swiper-pagination product-gallery-pagination"></div>
-            @endif
+
+            <div class="swiper-button-next"></div>
+            <div class="swiper-button-prev"></div>
         </div>
     </div>
-    @if ($mediaCount > 1)
-        <div class="product-gallery-thumbnail swiper">
-            <div class="swiper-wrapper">
+
+    <div class="product-gallery-thumbnail swiper"> 
+        <div class="swiper-wrapper">
+            @if (!$hasAnyMedia)
+                <div class="swiper-slide">
+                    <div class="gallery-thumbnail-slide">
+                        <div class="gallery-thumbnail-item">
+                            <img src="{{ asset('build/assets/image-placeholder.png') }}" alt="{{ $product->name }}" class="image-placeholder">
+                        </div>
+                    </div>
+                </div>
+            @else
                 @foreach ($product->variant->media as $media)
                     <div class="swiper-slide">
                         <div class="gallery-thumbnail-slide">
@@ -86,10 +128,27 @@
                         </div>
                     </div>
                 @endforeach
-            </div>
 
-            <div x-cloak class="swiper-button-next"></div>
-            <div x-cloak class="swiper-button-prev"></div>
+                @foreach ($videoMedia as $video)
+                    @php(
+                        $poster = $video->poster
+                            ?? optional($product->variant)->base_image?->path
+                            ?? $product->base_image?->path
+                            ?? asset('build/assets/image-placeholder.png')
+                    )
+                    <div class="swiper-slide">
+                        <div class="gallery-thumbnail-slide">
+                            <div class="gallery-thumbnail-item gallery-thumbnail-item--video">
+                                <img src="{{ $poster }}" alt="{{ $product->name }}">
+                                <span class="fc-video-play-icon">▶</span>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            @endif
         </div>
-    @endif
+
+        <div x-cloak class="swiper-button-next"></div>
+        <div x-cloak class="swiper-button-prev"></div>
+    </div>
 </div>

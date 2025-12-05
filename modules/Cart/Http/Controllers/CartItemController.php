@@ -56,6 +56,30 @@ class CartItemController extends Controller
 
 
     /**
+     * Store an upsell item in the cart with a direct line discount.
+     *
+     * This does not apply any coupons; pricing is resolved purely
+     * from the configured upsell rule on the backend.
+     */
+    public function storeUpsell(Request $request)
+    {
+        $data = $request->validate([
+            'rule_id' => ['required', 'integer'],
+            'product_id' => ['required', 'integer'],
+            'variant_id' => ['nullable', 'integer'],
+            'qty' => ['nullable'], // metre/adet desteği için numeric serbest bırakıyoruz
+            'options' => ['nullable', 'array'],
+        ]);
+
+        $cart = Cart::instance();
+
+        $cart->storeUpsell($data);
+
+        return $cart;
+    }
+
+
+    /**
      * Update the specified resource in storage.
      *
      * @param string $id

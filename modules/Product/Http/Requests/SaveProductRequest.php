@@ -10,6 +10,7 @@ use Modules\Product\Entities\Product;
 use Modules\Core\Http\Requests\Request;
 use Modules\Variation\Entities\Variation;
 use Modules\Product\Rules\DistinctProductVariationValueLabel;
+use Modules\Unit\Entities\Unit;
 
 class SaveProductRequest extends Request
 {
@@ -34,6 +35,7 @@ class SaveProductRequest extends Request
             $this->getProductVariationsRules(),
             $this->getProductVariantsRules(),
             $this->getProductOptionsRules(),
+            $this->getProductMediaRules(),
         );
     }
 
@@ -122,13 +124,14 @@ class SaveProductRequest extends Request
                 'brand_id' => ['nullable', Rule::exists('brands', 'id')],
                 'tax_class_id' => ['nullable', Rule::exists('tax_classes', 'id')],
                 'sale_unit_id' => ['nullable', Rule::exists('units', 'id')],
+                'primary_category_id' => ['nullable', Rule::exists('categories', 'id')],
                 'price' => 'required_unless:has_active_variants,1|nullable|numeric|min:0|max:99999999999999',
                 'special_price' => 'nullable|numeric|min:0|max:99999999999999',
                 'special_price_type' => ['nullable', Rule::in(['fixed', 'percent'])],
                 'special_price_start' => 'nullable|date|before:special_price_end',
                 'special_price_end' => 'nullable|date|after:special_price_start',
                 'manage_stock' => 'required|boolean',
-                'qty' => 'required_unless:has_active_variants,1|nullable|numeric|min:0',
+                'qty' => 'nullable|numeric|min:0',
                 'in_stock' => 'required|boolean',
                 'new_from' => 'nullable|date',
                 'new_to' => 'nullable|date',
@@ -145,9 +148,12 @@ class SaveProductRequest extends Request
     public function getInventoryRules(): array
     {
         if (!$this->request->has('variations')) {
+            $allowDecimal = $this->allowsDecimalQty();
+            $qtyRegex = $allowDecimal ? 'regex:/^\d+(?:[\.,]\d{1,2})?$/' : 'regex:/^\d+$/';
+
             return [
                 'manage_stock' => 'required|boolean',
-                'qty' => ['required_if:manage_stock,1','nullable','numeric','regex:/^\d+(?:[\.,]\d{1,2})?$/'],
+                'qty' => ['required_if:manage_stock,1','nullable','numeric',$qtyRegex],
                 'in_stock' => 'required|boolean',
             ];
         }
@@ -188,7 +194,7 @@ class SaveProductRequest extends Request
             'variants.*.special_price_start' => 'nullable|date|before:variants.*.special_price_end',
             'variants.*.special_price_end' => 'nullable|date|after:variants.*.special_price_start',
             'variants.*.manage_stock' => 'required_if:variants.*.is_active,1|boolean',
-            'variants.*.qty' => ['required_if:variants.*.is_active,1','required_if:variants.*.manage_stock,1','nullable','numeric','regex:/^\d+(?:[\.,]\d{1,2})?$/'],
+            'variants.*.qty' => ['required_if:variants.*.is_active,1','required_if:variants.*.manage_stock,1','nullable','numeric',$this->allowsDecimalQty() ? 'regex:/^\d+(?:[\.,]\d{1,2})?$/' : 'regex:/^\d+$/'],
             'variants.*.in_stock' => 'required_if:variants.*.is_active,1|boolean',
             'variants.*.is_active' => 'required|boolean',
         ];
@@ -204,6 +210,21 @@ class SaveProductRequest extends Request
             'options.*.values.*.label' => 'required_if:options.*.type,dropdown,checkbox,checkbox_custom,radio,radio_custom,multiple_select',
             'options.*.values.*.price' => 'nullable|numeric|min:0|max:99999999999999',
             'options.*.values.*.price_type' => ['required', Rule::in(['fixed', 'percent'])],
+        ];
+    }
+
+    public function getProductMediaRules(): array
+    {
+        return [
+            'product_media' => ['nullable','array'],
+            'product_media.*.id' => ['nullable','integer','min:1'],
+            'product_media.*.product_id' => ['nullable','integer','min:1'],
+            'product_media.*.variant_id' => ['nullable','integer','min:1'],
+            'product_media.*.type' => ['required','string', Rule::in(['image','video'])],
+            'product_media.*.path' => ['required','string'],
+            'product_media.*.poster' => ['nullable','string'],
+            'product_media.*.position' => ['nullable','integer','min:0'],
+            'product_media.*.is_active' => ['nullable','boolean'],
         ];
     }
 
@@ -227,5 +248,15 @@ class SaveProductRequest extends Request
         $rules[] = Rule::unique('products', 'slug')->ignore($slug, 'slug');
 
         return $rules;
+    }
+
+    private function allowsDecimalQty(): bool
+    {
+        $unitId = $this->input('sale_unit_id');
+        if (!$unitId) {
+            return false;
+        }
+        $unit = Unit::query()->select(['id','is_decimal_stock'])->find($unitId);
+        return (bool) optional($unit)->is_decimal_stock;
     }
 }

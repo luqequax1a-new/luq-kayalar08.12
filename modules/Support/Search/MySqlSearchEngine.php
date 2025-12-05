@@ -192,6 +192,17 @@ class MySqlSearchEngine extends Engine
             return '';
         }
 
-        return '+' . preg_replace('/[-+~*()><@"]/', ' ', $builder->query) . '*';
+        $clean = preg_replace('/[-+~*()><@"]/',' ', $builder->query);
+        $terms = preg_split('/\s+/', trim($clean));
+        $tokens = [];
+
+        foreach ($terms as $term) {
+            if ($term === '') {
+                continue;
+            }
+            $tokens[] = '+' . $term . '*';
+        }
+
+        return implode(' ', $tokens);
     }
 }

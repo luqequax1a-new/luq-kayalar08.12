@@ -45,6 +45,32 @@ class PWAService
     }
 
 
+    public function ensureDefaultIcons()
+    {
+        $output_path = public_path('pwa/icons');
+        FileSystem::isDirectory($output_path) or FileSystem::makeDirectory($output_path, 0777, true, true);
+
+        $map = [
+            48 => base_path('vendor/silviolleite/laravelpwa/assets/images/icons/icon-48x48.png'),
+            72 => base_path('vendor/silviolleite/laravelpwa/assets/images/icons/icon-72x72.png'),
+            96 => base_path('vendor/silviolleite/laravelpwa/assets/images/icons/icon-96x96.png'),
+            128 => base_path('vendor/silviolleite/laravelpwa/assets/images/icons/icon-128x128.png'),
+            144 => base_path('vendor/silviolleite/laravelpwa/assets/images/icons/icon-144x144.png'),
+            152 => base_path('vendor/silviolleite/laravelpwa/assets/images/icons/icon-152x152.png'),
+            192 => base_path('vendor/silviolleite/laravelpwa/assets/images/icons/icon-192x192.png'),
+            384 => base_path('vendor/silviolleite/laravelpwa/assets/images/icons/icon-384x384.png'),
+            512 => base_path('vendor/silviolleite/laravelpwa/assets/images/icons/icon-512x512.png'),
+        ];
+
+        foreach ($map as $size => $src) {
+            $dest = $output_path . '/' . $size . 'x' . $size . '.png';
+            if (!FileSystem::exists($dest) && FileSystem::exists($src)) {
+                FileSystem::copy($src, $dest);
+            }
+        }
+    }
+
+
     public function updatePWAVersionInServiceWorkerJs()
     {
         $path = public_path('serviceworker.js');

@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="{{ locale() }}">
     <head>
-        <base href="{{ config('app.url') }}">
+        <base href="{{ url('/') }}/">
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
 
         <title>
             @hasSection('title')
-                @yield('title') - {{ setting('store_name') }}
+                @yield('title')
             @else
                 @if (setting('store_tagline'))
                     {{ setting('store_tagline') }} -
@@ -17,7 +17,14 @@
             @endif
         </title>
 
+        <script>
+            window.FleetcartSEO = {
+                baseTitle: document.title,
+            };
+        </script>
+
         @stack('meta')
+        @yield('canonical')
         @PWA
 
         <link rel="shortcut icon" href="{{ $favicon }}" type="image/x-icon">
@@ -67,10 +74,6 @@
         {!! $schemaMarkup->toScript() !!}
 
         @stack('globals')
-
-        <script type="module">
-            Alpine.start();
-        </script>
     </head>
 
     <body

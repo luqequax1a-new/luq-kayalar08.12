@@ -34,6 +34,8 @@ class CategoryProductController
         return view('storefront::public.products.index', [
             'categoryName' => $category->name,
             'categoryBanner' => $category->banner->path,
+            'categoryMetaTitle' => $category->meta_title,
+            'categoryMetaDescription' => $category->meta_description,
         ]);
     }
 }

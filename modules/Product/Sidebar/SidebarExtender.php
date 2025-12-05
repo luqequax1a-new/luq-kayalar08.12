@@ -60,6 +60,27 @@ class SidebarExtender extends BaseSidebarExtender
                     $item->isActiveWhen(route('admin.redirects.index', null, false));
                     $item->authorize(true);
                 });
+
+                $item->item('Bulk Meta Manager', function (Item $item) {
+                    $item->weight(2);
+                    $item->route('admin.seo.bulk_meta.index');
+                    $item->isActiveWhen(route('admin.seo.bulk_meta.index', null, false));
+                    $item->authorize(true);
+                });
+
+                $item->item('Sitemap', function (Item $item) {
+                    $item->weight(3);
+                    $item->route('admin.sitemaps.create');
+                    $item->isActiveWhen(route('admin.sitemaps.create', null, false));
+                    $item->authorize(true);
+                });
+
+                $item->item('Robots.txt', function (Item $item) {
+                    $item->weight(4);
+                    $item->route('admin.robots.edit');
+                    $item->isActiveWhen(route('admin.robots.edit', null, false));
+                    $item->authorize(true);
+                });
             });
         });
     }

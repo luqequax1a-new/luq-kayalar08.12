@@ -51,7 +51,7 @@
             </template>
 
             <div class="product-info-bottom">
-                <div class="line-summary" x-text="`${cartItem.product.unit_decimal ? Number(cartItem.qty).toFixed(2).replace(/\\.00$/, '') : cartItem.qty}${cartItem.product.unit_suffix ? ' ' + cartItem.product.unit_suffix : ''} x ${formatCurrency(unitPrice)} = ${formatCurrency(lineTotal(cartItem.qty))}`"></div>
+                <div class="line-summary" x-text="`${Number(cartItem.qty).toString()}${cartItem.product.unit_suffix ? ' ' + cartItem.product.unit_suffix : ''} x ${formatCurrency(unitPrice).replace(/,00$/, '').replace(/^₺/, '₺ ')} = ${formatCurrency(lineTotal(cartItem.qty)).replace(/,00$/, '').replace(/^₺/, '₺ ')}`"></div>
             </div>
         </div>
 

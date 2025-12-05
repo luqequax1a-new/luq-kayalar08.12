@@ -2,7 +2,7 @@
     x-data="HeaderSearch({
         categories: {{ $categories }},
         initialQuery: '{{ addslashes(request('query')) }}',
-        initialCategory: '{{ addslashes(request('category')) }}'
+        initialCategory: ''
     })"
     class="header-search-wrap-parent"
 >

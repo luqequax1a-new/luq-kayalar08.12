@@ -8,11 +8,22 @@
                     <template x-for="(product, index) in $store.compare.products" :key="index">
                         <td x-data="ProductCard(product)">
                             <a :href="productUrl" class="product-image">
-                                <img
-                                    :src="baseImage"
-                                    :class="{ 'image-placeholder': !hasBaseImage }"
-                                    :alt="product.name"
-                                >
+                                <picture>
+                                    <template x-if="imageSources.avif">
+                                        <source :srcset="imageSources.avif" type="image/avif">
+                                    </template>
+                                    <template x-if="imageSources.webp">
+                                        <source :srcset="imageSources.webp" type="image/webp">
+                                    </template>
+                                    <img
+                                        :src="imageSources.fallback"
+                                        :class="{ 'image-placeholder': !hasBaseImage }"
+                                        :alt="product.name"
+                                        loading="lazy"
+                                        width="400"
+                                        height="400"
+                                    >
+                                </picture>
                             </a>
 
                             <a

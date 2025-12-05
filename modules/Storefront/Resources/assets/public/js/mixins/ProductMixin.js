@@ -5,13 +5,16 @@ export default function (product) {
         addingToCart: false,
 
         get productName() {
+            if (this.product.list_variants_separately && this.hasAnyVariant && this.item?.name) {
+                return `${this.product.name} - ${this.item.name}`;
+            }
             return this.product.name;
         },
 
         get productUrl() {
             let url = `/products/${this.product.slug}`;
 
-            if (this.hasAnyVariant) {
+            if (this.hasAnyVariant && this.item.uid) {
                 url += `?variant=${this.item.uid}`;
             }
 
@@ -75,20 +78,23 @@ export default function (product) {
         },
 
         get hasBaseImage() {
-            if (this.hasAnyVariant) {
-                return this.item.base_image.length !== 0 ||
-                    this.product.base_image.length !== 0
-                    ? true
-                    : false;
-            }
-
-            return this.item.base_image.length !== 0;
+            const p = this.product?.base_image?.path;
+            const v = this.item?.base_image?.path;
+            return !!(p || v);
         },
 
         get baseImage() {
-            return this.hasBaseImage
-                ? this.item.base_image.path || this.product.base_image.path
-                : `${window.location.origin}/build/assets/image-placeholder.png`;
+            const p = this.product?.base_image?.path;
+            const v = this.item?.base_image?.path;
+            if (p) return p;
+            if (v) return v;
+            return `${window.location.origin}/build/assets/image-placeholder.png`;
+        },
+
+        get baseImageThumb() {
+            const p = this.product?.base_image_thumb?.path;
+            const v = this.item?.base_image_thumb?.path;
+            return p || v || null;
         },
 
         get isInStock() {

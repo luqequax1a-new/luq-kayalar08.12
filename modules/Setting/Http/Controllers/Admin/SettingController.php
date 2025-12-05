@@ -49,6 +49,15 @@ class SettingController
         }
 
         setting($request->except('_token', '_method'));
+        if ($request->get('context') === 'review_campaign') {
+            return redirect()->route('admin.settings.review_campaign')
+                ->with('success', trans('setting::messages.settings_updated'));
+        }
+
+        if ($request->get('context') === 'whatsapp_module') {
+            return redirect()->route('admin.settings.whatsapp_module')
+                ->with('success', trans('setting::messages.settings_updated'));
+        }
 
         return redirect(non_localized_url())
             ->with('success', trans('setting::messages.settings_updated'));

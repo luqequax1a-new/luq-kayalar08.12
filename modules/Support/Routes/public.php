@@ -9,3 +9,5 @@ Route::get('manifest.json', 'ManifestController@json')->name('manifest.json');
 Route::get('offline', 'ManifestController@offline')->name('offline');
 
 Route::get('sitemap', 'SitemapController@index')->name('sitemap');
+
+Route::get('sitemap/cron/{token}', 'SitemapCronController@run')->name('sitemap.cron');

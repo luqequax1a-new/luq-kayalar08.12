@@ -14,3 +14,57 @@
 .product-details-wrap {
     margin-top: 50px;
 }
+
+.product-badge-labels {
+    position: absolute;
+    z-index: 5;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.product-badge-label img {
+    max-height: 66px; // ~%10 daha büyük (60 -> 66)
+    width: auto;
+    display: block;
+}
+
+.product-badge-label {
+    display: flex;
+    justify-content: center;
+}
+
+.product-badge-labels--top_left {
+    top: 8px;
+    left: 8px;
+}
+
+.product-badge-labels--top_right {
+    top: 8px;
+    right: 8px;
+    align-items: flex-end;
+}
+
+.product-badge-labels--bottom_left {
+    bottom: 8px;
+    left: 8px;
+}
+
+.product-badge-labels--bottom_right {
+    bottom: 8px;
+    right: 8px;
+    align-items: flex-end;
+}
+
+@media (max-width: 576px) {
+    .product-badge-label img {
+        max-height: 48px;
+    }
+}
+
+@media screen and (max-width: 767px) {
+    .product-details-wrap {
+        margin-top: 25px;
+    }
+}

@@ -7,6 +7,7 @@ Alpine.store("cart", {
         shippingCost: {},
         shippingMethodName: null,
         subTotal: {},
+        codFee: {},
         taxes: [],
         total: [],
     },
@@ -32,6 +33,10 @@ Alpine.store("cart", {
         return this.cart.shippingCost?.inCurrentCurrency?.amount || 0;
     },
 
+    get codFee() {
+        return this.cart.codFee?.inCurrentCurrency?.amount || 0;
+    },
+
     get taxTotal() {
         return Object.values(this.cart.taxes).reduce((accumulator, tax) => {
             return accumulator + tax.amount.inCurrentCurrency.amount;
@@ -48,8 +53,11 @@ Alpine.store("cart", {
     },
 
     get total() {
+        const codMode = window.codFeeDisplayMode || 'separate_line';
+        const codPart = codMode === 'add_to_shipping' ? 0 : this.codFee;
+
         return (
-            this.subTotal - this.couponValue + this.taxTotal + this.shippingCost
+            this.subTotal - this.couponValue + this.taxTotal + this.shippingCost + codPart
         );
     },
 

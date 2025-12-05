@@ -3,19 +3,45 @@
         <h1 class="product-name" x-text="productName"></h1>
 
         @if (setting('reviews_enabled'))
-            @include('storefront::public.partials.product_rating')
+            <div x-show="reviewCount > 0">
+                @include('storefront::public.partials.product_rating', ['data' => 'product'])
+            </div>
         @endif
 
-                <template x-cloak x-if="isInStock">
-                    <div>
-                        <template x-if="doesManageStock">
-                            <div
-                                class="availability in-stock"
-                                x-text="trans('storefront::product.left_in_stock', { count: new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(item.qty) + (product.unit_suffix ? ' ' + product.unit_suffix : '') })"
-                            >
-                            </div>
-                        </template>
-                
+        @if ($product->variant)
+            <template x-if="isActiveItem">
+                <div class="product-price">
+                    <template x-if="hasSpecialPrice">
+                        <span class="special-price" x-text="formatCurrency(specialPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')"></span>
+                    </template>
+
+                    <span class="previous-price" x-text="formatCurrency(regularPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')">
+                        {!! $item->is_active ? $item->hasSpecialPrice() ? $item->special_price->format() : $item->price->format() : '' !!}
+                    </span>
+                </div>
+            </template>
+        @else
+            <div class="product-price">
+                <template x-if="hasSpecialPrice">
+                    <span class="special-price" x-text="formatCurrency(specialPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')"></span>
+                </template>
+
+                <span class="previous-price" x-text="formatCurrency(regularPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')">
+                    {{ $item->hasSpecialPrice() ? $item->special_price->format() : $item->price->format() }}
+                </span>
+            </div>
+        @endif
+
+        <template x-cloak x-if="isInStock">
+            <div>
+                <template x-if="doesManageStock">
+                    <div
+                        class="availability in-stock"
+                        x-text="trans('storefront::product.left_in_stock', { count: new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(item.qty) + (product.unit_suffix ? ' ' + product.unit_suffix : '') })"
+                    >
+                    </div>
+                </template>
+
                 <template x-if="!doesManageStock">
                     <div class="availability in-stock">
                         {{ trans('storefront::product.in_stock') }}
@@ -23,16 +49,11 @@
                 </template>
             </div>
         </template>
-        
         <template x-if="!isInStock">
             <div class="availability out-of-stock">
                 {{ trans('storefront::product.out_of_stock') }}
             </div>
         </template>
-
-        <div class="brief-description">
-            {!! $product->short_description !!}
-        </div>
 
         <div class="details-info-top-actions">
             <button
@@ -67,33 +88,17 @@
                 {{ trans('storefront::product.compare') }}
             </button>
         </div>
+
+        
+
+        <div class="brief-description">
+            {!! $product->short_description !!}
+        </div>
+
+        
     </div>
 
     <div class="details-info-middle">
-        @if ($product->variant)
-            <template x-if="isActiveItem">
-                <div class="product-price">
-                    <template x-if="hasSpecialPrice">
-                        <span class="special-price" x-text="formatCurrency(specialPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')"></span>
-                    </template>
-
-                    <span class="previous-price" x-text="formatCurrency(regularPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')">
-                        {!! $item->is_active ? $item->hasSpecialPrice() ? $item->special_price->format() : $item->price->format() : '' !!}
-                    </span>
-                </div>
-            </template>
-        @else
-            <div class="product-price">
-                <template x-if="hasSpecialPrice">
-                    <span class="special-price" x-text="formatCurrency(specialPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')"></span>
-                </template>
-
-                <span class="previous-price" x-text="formatCurrency(regularPrice) + (product.unit_suffix ? ' /' + product.unit_suffix : '')">
-                    {{ $item->hasSpecialPrice() ? $item->special_price->format() : $item->price->format() }}
-                </span>
-            </div>
-        @endif
-
         <form
             @input="errors.clear($event.target.name)"
             @submit.prevent="addToCart"
@@ -170,12 +175,11 @@
                         </div>
 
                         <div class="decimal-quantity-chips">
-                            <button type="button" class="chip" @click="updateQuantity(0.5)">0.5<span x-text="product.unit_suffix"></span></button>
-                            <button type="button" class="chip" @click="updateQuantity(1)">1<span x-text="product.unit_suffix"></span></button>
-                            <button type="button" class="chip" @click="updateQuantity(2)">2<span x-text="product.unit_suffix"></span></button>
-                            <button type="button" class="chip" @click="updateQuantity(2.5)">2.5<span x-text="product.unit_suffix"></span></button>
-                            <button type="button" class="chip" @click="updateQuantity(5)">5<span x-text="product.unit_suffix"></span></button>
-                            <button type="button" class="chip" @click="updateQuantity(10)">10<span x-text="product.unit_suffix"></span></button>
+                            <button type="button" class="chip" :disabled="doesManageStock && item.qty < 0.5" @click="updateQuantity(0.5)">0.5<span x-text="product.unit_suffix"></span></button>
+                            <button type="button" class="chip" :disabled="doesManageStock && item.qty < 1" @click="updateQuantity(1)">1<span x-text="product.unit_suffix"></span></button>
+                            <button type="button" class="chip" :disabled="doesManageStock && item.qty < 2.5" @click="updateQuantity(2.5)">2.5<span x-text="product.unit_suffix"></span></button>
+                            <button type="button" class="chip chip--desktop-only" :disabled="doesManageStock && item.qty < 5" @click="updateQuantity(5)">5<span x-text="product.unit_suffix"></span></button>
+                            <button type="button" class="chip" :disabled="doesManageStock && item.qty < 10" @click="updateQuantity(10)">10<span x-text="product.unit_suffix"></span></button>
                         </div>
 
                         <div class="decimal-quantity-info" x-text="product.unit_info_bottom || `Minimum kesim: ${new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(product.unit_min)} ${product.unit_suffix}`"></div>
@@ -237,6 +241,32 @@
                 >
                     {{ trans($item->is_active ? 'storefront::product.add_to_cart' : 'storefront::product.unavailable') }}
                 </button>
+
+                @if (setting('phone_number') && setting('product_button_enabled'))
+                    <a
+                        class="btn btn-default"
+                        href="#"
+                        @click.prevent="(() => {
+                            const phone = '{{ setting('phone_number') }}';
+                            const name = productName;
+                            const variant = (item && item.name) ? item.name : '';
+                            const qty = cartItemForm.qty;
+                            const unit = product.unit_suffix ? product.unit_suffix : '';
+                            const url = window.location.href;
+                            const template = `{{ str_replace(['\n',"\r\n"],'\\n', setting('product_message_template')) }}` || '';
+                            const msg = template
+                                .replace('{product_name}', name)
+                                .replace('{variant_name}', variant)
+                                .replace('{quantity}', qty)
+                                .replace('{unit}', unit)
+                                .replace('{product_url}', url);
+                            const link = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+                            window.open(link, '_blank');
+                        })()"
+                    >
+                        {{ setting('product_button_text', 'WhatsApp’tan Sor') }}
+                    </a>
+                @endif
             </div>
         </form>
     </div>

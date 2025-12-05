@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Modules\Media\Admin\MediaTable;
 use Modules\Support\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class File extends Model
 {
@@ -23,7 +24,34 @@ class File extends Model
      *
      * @var array
      */
-    protected $visible = ['id', 'filename', 'path'];
+    protected $visible = [
+        'id',
+        'filename',
+        'path',
+        'url',
+        'grid_webp_url',
+        'grid_avif_url',
+        'grid_jpeg_url',
+        'thumb_webp_url',
+        'thumb_avif_url',
+        'thumb_jpeg_url',
+        'detail_webp_url',
+        'detail_avif_url',
+        'detail_jpeg_url',
+    ];
+
+    protected $appends = [
+        'url',
+        'grid_webp_url',
+        'grid_avif_url',
+        'grid_jpeg_url',
+        'thumb_webp_url',
+        'thumb_avif_url',
+        'thumb_jpeg_url',
+        'detail_webp_url',
+        'detail_avif_url',
+        'detail_jpeg_url',
+    ];
 
 
     /**
@@ -59,9 +87,26 @@ class File extends Model
      */
     public function getPathAttribute($path)
     {
-        if (!is_null($path)) {
-            return Storage::disk($this->disk)->url($path);
+        if (is_null($path)) return null;
+        $raw = str_replace('\\', '/', $path);
+        if (Str::startsWith($raw, ['http://', 'https://', '//'])) {
+            return $raw;
         }
+        $clean = Str::startsWith($raw, 'public/') ? Str::replaceFirst('public/', '', $raw) : $raw;
+        return Storage::disk($this->disk ?: 'public')->url($clean);
+    }
+
+
+    public function getUrlAttribute(): ?string
+    {
+        $raw = $this->getRawOriginal('path');
+        if (is_null($raw)) return null;
+        $raw = str_replace('\\', '/', $raw);
+        if (Str::startsWith($raw, ['http://', 'https://', '//'])) {
+            return $raw;
+        }
+        $clean = Str::startsWith($raw, 'public/') ? Str::replaceFirst('public/', '', $raw) : $raw;
+        return Storage::disk($this->disk ?: 'public')->url($clean);
     }
 
 
@@ -97,6 +142,51 @@ class File extends Model
     public function icon()
     {
         return IconResolver::resolve($this->mime);
+    }
+
+    public function getGridWebpUrlAttribute(): ?string
+    {
+        return media_variant_url($this, 400, 'webp');
+    }
+
+    public function getGridAvifUrlAttribute(): ?string
+    {
+        return media_variant_url($this, 400, 'avif');
+    }
+
+    public function getGridJpegUrlAttribute(): ?string
+    {
+        return media_variant_url($this, 400, null);
+    }
+
+    public function getThumbWebpUrlAttribute(): ?string
+    {
+        return media_variant_url($this, 80, 'webp');
+    }
+
+    public function getThumbAvifUrlAttribute(): ?string
+    {
+        return media_variant_url($this, 80, 'avif');
+    }
+
+    public function getThumbJpegUrlAttribute(): ?string
+    {
+        return media_variant_url($this, 80, null);
+    }
+
+    public function getDetailWebpUrlAttribute(): ?string
+    {
+        return media_variant_url($this, 1000, 'webp');
+    }
+
+    public function getDetailAvifUrlAttribute(): ?string
+    {
+        return media_variant_url($this, 1000, 'avif');
+    }
+
+    public function getDetailJpegUrlAttribute(): ?string
+    {
+        return media_variant_url($this, 1000, null);
     }
 
 

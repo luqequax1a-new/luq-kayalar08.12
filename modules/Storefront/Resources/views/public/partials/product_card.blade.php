@@ -1,15 +1,52 @@
 <div x-data="ProductCard({{ $data ?? 'product' }})" class="product-card">
     <div class="product-card-top">
-        <a :href="productUrl" class="product-image">
-            <img
-                :src="baseImage"
-                :class="{ 'image-placeholder': !hasBaseImage }"
-                :alt="productName"
-                loading="lazy"
-            />
+        <a :href="productUrl" class="product-image" style="position: relative;">
+            <template x-if="product.tag_badges && product.tag_badges.length">
+                <template x-for="pos in ['top_left','top_right','bottom_left','bottom_right']" :key="'pos-' + pos">
+                    <div
+                        class="product-badge-labels product-badge-labels--listing"
+                        :class="'product-badge-labels--' + pos"
+                        x-show="product.tag_badges.some(b => (b.listing_position || 'top_left') === pos)"
+                    >
+                        <template x-for="badge in product.tag_badges.filter(b => (b.listing_position || 'top_left') === pos)"
+                                  :key="badge.name + '-' + pos">
+                            <div class="product-badge-label">
+                                <template x-if="badge.image_url">
+                                    <img :src="badge.image_url" :alt="badge.name" loading="lazy">
+                                </template>
+
+                                <template x-if="!badge.image_url">
+                                    <span x-text="badge.name"></span>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </template>
+
+            <picture>
+                <template x-if="Boolean(imageSources.avif)">
+                    <source :srcset="imageSources.avif" type="image/avif">
+                </template>
+                <template x-if="Boolean(imageSources.webp)">
+                    <source :srcset="imageSources.webp" type="image/webp">
+                </template>
+                <img
+                    class="product-image-img"
+                    :src="imageSources.fallback"
+                    :alt="productName"
+                    loading="lazy"
+                    fetchpriority="auto"
+                    decoding="async"
+                    width="400"
+                    height="400"
+                    style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:100%;max-height:100%;"
+                />
+            </picture>
 
             <div class="product-image-layer"></div>
         </a>
+
 
         <div class="product-card-actions">
             <button
@@ -58,7 +95,7 @@
             </button>
         </div>
 
-        <ul class="list-inline product-badge">
+        <ul class="list-inline product-badge" :class="{ 'is-empty': !(isOutOfStock || isNew || hasPercentageSpecialPrice || hasSpecialPrice) }">
             <template x-if="isOutOfStock">
                 <li class="badge badge-danger">
                     {{ trans("storefront::product_card.out_of_stock") }}
@@ -90,28 +127,59 @@
     </div>
 
     <div class="product-card-middle" :class="{ 'has-rating': hasVisibleRating }">
+        <div class="variant-thumbnails" x-show="!product.list_variants_separately && product.variants && product.variants.length && !showAllVariants">
+            <template x-for="(variant, idx) in product.variants" :key="variant.id">
+                <template x-if="idx < 3">
+                    <button type="button" class="variant-thumb" @mouseenter="previewVariant(variant)" @mouseleave="clearPreview()" @click="selectVariant(variant)">
+                        <img
+                            :src="(variant.base_image?.thumb_webp_url
+                                    || variant.base_image?.thumb_jpeg_url
+                                    || (variant.base_image && variant.base_image.path)
+                                    || (baseImageThumb || baseImage))"
+                            :alt="variant.name"
+                            loading="lazy"
+                            width="80"
+                            height="80"
+                        />
+                    </button>
+                </template>
+            </template>
+            <template x-if="product.variants.length > 3">
+                <button type="button" class="variant-count" @click.stop="toggleAllVariants()">+<span x-text="product.variants.length - 3"></span></button>
+            </template>
+        </div>
+
+        <div class="variant-all-inline" x-show="!product.list_variants_separately && product.variants && product.variants.length && showAllVariants">
+            <template x-for="variant in product.variants" :key="`all-` + variant.id">
+                <button type="button" class="variant-thumb" @mouseenter="previewVariant(variant)" @mouseleave="clearPreview()" @click="selectVariant(variant)">
+                    <img
+                        :src="(variant.base_image?.thumb_webp_url
+                                || variant.base_image?.thumb_jpeg_url
+                                || (variant.base_image && variant.base_image.path)
+                                || (baseImageThumb || baseImage))"
+                        :alt="variant.name"
+                        loading="lazy"
+                        width="80"
+                        height="80"
+                    />
+                </button>
+            </template>
+        </div>
+
         <a :href="productUrl" class="product-name">
             <span x-text="productName"></span>
         </a> 
         
-        @include('storefront::public.partials.product_rating', ['data' => $data ?? null])
+        <template x-if="hasVisibleRating">
+            @include('storefront::public.partials.product_rating', ['data' => $data ?? null])
+        </template>
+
+        <div class="product-price" x-html="productPrice"></div>
     </div>
 
+    
+
     <div class="product-card-bottom">
-        <div class="product-price">
-            <template x-if="hasSpecialPrice">
-                <span
-                    class="special-price"
-                    x-text="unitSuffix ? formatCurrency(specialPrice) + ' /' + unitSuffix : formatCurrency(specialPrice)"
-                ></span>
-            </template>
-
-            <span
-                class="previous-price"
-                x-text="unitSuffix ? formatCurrency(regularPrice) + ' /' + unitSuffix : formatCurrency(regularPrice)"
-            ></span>
-        </div>
-
         <template x-if="hasNoOption || isOutOfStock">
             <button
                 class="btn btn-primary btn-add-to-cart"

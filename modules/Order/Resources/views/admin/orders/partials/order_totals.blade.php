@@ -1,8 +1,20 @@
+@php
+    $isCodOrder = $order->isCodPayment();
+    $codFeeForOrder = null;
+
+    if ($isCodOrder) {
+        $codFee = \Modules\Shipping\SmartShippingCod::codFeeForSubtotal($order->sub_total);
+
+        if (!$codFee->isZero()) {
+            $codFeeForOrder = $codFee->convert($order->currency, $order->currency_rate);
+        }
+    }
+@endphp
+
 <div class="order-totals-wrapper">
-    <div class="row">
-        <div class="order-totals pull-right">
-            <div class="table-responsive">
-                <table class="table">
+    <div class="order-totals">
+        <div class="table-responsive">
+            <table class="table order-totals-table">
                     <tbody>
                         <tr>
                             <td>{{ trans('order::orders.subtotal') }}</td>
@@ -12,7 +24,20 @@
                         @if ($order->hasShippingMethod())
                             <tr>
                                 <td>{{ $order->shipping_method }}</td>
-                                <td class="text-right">{{ $order->shipping_cost->format() }}</td>
+                                <td class="text-right">
+                                    @if ($order->shipping_cost->amount() == 0)
+                                        {{ trans('storefront::checkout.free') }}
+                                    @else
+                                        {{ $order->shipping_cost->format() }}
+                                    @endif
+                                </td>
+                            </tr>
+                        @endif
+
+                        @if ($codFeeForOrder)
+                            <tr>
+                                <td>{{ trans('storefront::checkout.cod_fee') }}</td>
+                                <td class="text-right">{{ $codFeeForOrder->format($order->currency) }}</td>
                             </tr>
                         @endif
 
@@ -36,7 +61,6 @@
                         </tr>
                     </tbody>
                 </table>
-            </div>
         </div>
     </div>
 </div>

@@ -1,0 +1,13 @@
+{
+    "name": "fleetcart/geliver",
+    "description": "Geliver shipping integration module.",
+    "autoload": {
+        "psr-4": {
+            "Modules\\Geliver\\": ""
+        }
+    },
+    "require": {
+        "php": "^8.1"
+    }
+}
+

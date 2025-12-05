@@ -29,14 +29,25 @@
                                         
                                         <div class="address-card-data">
                                             <span x-text="address.full_name"></span>
-                                            <span x-text="address.address_1"></span>
+                                            <template x-if="address.invoice_title || address.company_name">
+                                                <span x-text="`Firma Adı: ${address.invoice_title || address.company_name}`"></span>
+                                            </template>
+                                            <template x-if="address.invoice_tax_number || address.tax_number">
+                                                <span x-text="`Vergi Numarası / TCKN: ${address.invoice_tax_number || address.tax_number}`"></span>
+                                            </template>
+                                            <template x-if="address.invoice_tax_office || address.tax_office">
+                                                <span x-text="`Vergi Dairesi: ${address.invoice_tax_office || address.tax_office}`"></span>
+                                            </template>
 
+                                            <span x-text="address.address_line || address.address_1"></span>
                                             <template x-if="address.address_2">
                                                 <span x-text="address.address_2"></span>
                                             </template>
 
-                                            <span x-html="`${address.city}, ${address.state_name ?? address.state} ${address.zip}`"></span>
-                                            <span x-text="address.country_name"></span>
+                                            <span x-text="`${address.city_title ?? address.city}, ${address.state_name ?? address.state}`"></span>
+                                            <template x-if="address.phone">
+                                                <span x-text="`Telefon: ${address.phone}`"></span>
+                                            </template>
                                         </div>
                                     </address>
                                 </div>
@@ -114,15 +125,15 @@
 
                                     <input
                                         type="text"
-                                        name="shipping[address_1]"
-                                        id="shipping-address-1"
+                                        name="shipping[address_line]"
+                                        id="shipping-address-line"
                                         class="form-control"
                                         placeholder="{{ trans('checkout::attributes.shipping.address_1') }}"
-                                        x-model="form.shipping.address_1"
+                                        x-model="form.shipping.address_line"
                                     >
 
-                                    <template x-if="errors.has('shipping.address_1')">
-                                        <span class="error-message" x-text="errors.get('shipping.address_1')"></span>
+                                    <template x-if="errors.has('shipping.address_line')">
+                                        <span class="error-message" x-text="errors.get('shipping.address_line')"></span>
                                     </template>
                                 </div>
                             </div>
@@ -131,84 +142,55 @@
 
                             <div class="col-md-9">
                                 <div class="form-group">
-                                    <label for="shipping-state">
-                                        {{ trans('checkout::attributes.shipping.state') }}<span>*</span>
-                                    </label>
+                                    <label for="shipping-city-id">İl<span>*</span></label>
 
-                                    <template x-if="!hasShippingStates">
-                                        <input
-                                            type="text"
-                                            name="shipping[state]"
-                                            id="shipping-state"
-                                            class="form-control"
-                                            x-model="form.shipping.state"
-                                        >
-                                    </template>
+                                    <select
+                                        name="shipping[city_id]"
+                                        id="shipping-city-id"
+                                        class="form-control arrow-black"
+                                        x-model="form.shipping.city_id"
+                                        @change="changeShippingCityId($event.target.value)"
+                                    >
+                                        <option value="">{{ trans('storefront::checkout.please_select') }}</option>
 
-                                    <template x-if="hasShippingStates">
-                                        <select
-                                            x-cloak
-                                            name="shipping[state]"
-                                            id="shipping-state"
-                                            class="form-control arrow-black"
-                                            @change="changeShippingState($event.target.value)"
-                                        >
-                                            <option value="">{{ trans('storefront::checkout.please_select') }}
-                                            </option>
+                                        <template x-for="p in provincesTR" :key="p.sehir_id || p.sehir_adi">
+                                            <option :value="p.sehir_id ?? p.sehir_adi" x-text="p.sehir_adi"></option>
+                                        </template>
+                                    </select>
 
-                                            <template x-for="(name, code) in states.shipping" :key="code">
-                                                <option :value="code" x-html="name"></option>
-                                            </template>
-                                        </select>
-                                    </template>
-
-                                    <template x-if="errors.has('shipping.state')">
-                                        <span class="error-message" x-text="errors.get('shipping.state')"></span>
+                                    <template x-if="errors.has('shipping.city_id')">
+                                        <span class="error-message" x-text="errors.get('shipping.city_id')"></span>
                                     </template>
                                 </div>
                             </div>
 
                             <div class="col-md-9">
                                 <div class="form-group">
-                                    <label for="shipping-city">
-                                        {{ trans('checkout::attributes.shipping.city') }}<span>*</span>
-                                    </label>
+                                    <label for="shipping-district-id">İlçe<span>*</span></label>
 
-                                    <template x-if="form.shipping.country === 'TR' && districts.shipping.length">
-                                        <select
-                                            name="shipping[city]"
-                                            id="shipping-city"
-                                            class="form-control arrow-black"
-                                            @change="changeShippingCity($event.target.value)"
-                                        >
-                                            <option value="">{{ trans('storefront::checkout.please_select') }}</option>
+                                    <select
+                                        name="shipping[district_id]"
+                                        id="shipping-district-id"
+                                        class="form-control arrow-black"
+                                        x-model="form.shipping.district_id"
+                                        @change="changeShippingDistrictId($event.target.value)"
+                                    >
+                                        <option value="">{{ trans('storefront::checkout.please_select') }}</option>
 
-                                            <template x-for="d in districts.shipping" :key="d">
-                                                <option :value="d" x-text="d"></option>
-                                            </template>
-                                        </select>
-                                    </template>
+                                        <template x-for="d in shippingDistricts" :key="d.id">
+                                            <option :value="d.id" x-text="d.name"></option>
+                                        </template>
+                                    </select>
 
-                                    <template x-if="!(form.shipping.country === 'TR' && districts.shipping.length)">
-                                        <input
-                                            type="text"
-                                            name="shipping[city]"
-                                            :value="form.shipping.city"
-                                            id="shipping-city"
-                                            class="form-control"
-                                            @change="changeShippingCity($event.target.value)"
-                                        >
-                                    </template>
-
-                                    <template x-if="errors.has('shipping.city')">
-                                        <span class="error-message" x-text="errors.get('shipping.city')"></span>
+                                    <template x-if="errors.has('shipping.district_id')">
+                                        <span class="error-message" x-text="errors.get('shipping.district_id')"></span>
                                     </template>
                                 </div>
                             </div>
 
                             
 
-                            <div class="col-md-9">
+                            <div class="col-md-9" x-show="!hasAddress || form.newShippingAddress">
                                 <div class="form-group">
                                     <label for="shipping-phone">Telefon<span>*</span></label>
 
@@ -221,38 +203,13 @@
                                             placeholder="10 haneli, başında 0 olmadan"
                                             inputmode="numeric"
                                             pattern="^[1-9][0-9]{9}$"
-                                            x-model="form.customer_phone"
-                                            required
+                                            x-model="form.shipping.phone"
                                         >
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="col-md-9">
-                                <div class="form-group" x-cloak x-show="!singleCountry">
-                                    <label for="shipping-country">
-                                        {{ trans('checkout::attributes.shipping.country') }}<span>*</span>
-                                    </label>
-
-                                    <select
-                                        name="shipping[country]"
-                                        id="shipping-country"
-                                        class="form-control arrow-black"
-                                        @change="changeShippingCountry($event.target.value)"
-                                    >
-                                        <option value="">{{ trans('storefront::checkout.please_select') }}
-                                        </option>
-
-                                        <template x-for="(name, code) in countries" :key="code">
-                                            <option :value="code" x-text="name"></option>
-                                        </template>
-                                    </select>
-
-                                    <template x-if="errors.has('shipping.country')">
-                                        <span class="error-message" x-text="errors.get('shipping.country')"></span>
-                                    </template>
-                                </div>
-                            </div>
+                            
                         </div>
                     </div>
                 </div>

@@ -57,6 +57,15 @@
                             }
                         }
 
+                        &.wishlist {
+                            svg {
+                                path {
+                                    stroke: var(--color-primary);
+                                    fill: none;
+                                }
+                            }
+                        }
+
                         svg {
                             path {
                                 fill: var(--color-primary);

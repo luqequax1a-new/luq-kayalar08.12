@@ -7,6 +7,16 @@ import "./components/CustomPageSelect";
 import "../../../components/ProductCard";
 import "../../../components/Pagination";
 
+function updatePageTitle(selectedCategory) {
+    const baseTitle = (window.FleetcartSEO && window.FleetcartSEO.baseTitle) || document.title;
+    if (!selectedCategory) {
+        document.title = baseTitle;
+        return;
+    }
+    const categoryTitle = selectedCategory.meta_title || `${selectedCategory.name} | ${baseTitle}`;
+    document.title = categoryTitle;
+}
+
 const {
     initialQuery,
     initialBrandName,
@@ -71,6 +81,34 @@ Alpine.data("ProductIndex", () => ({
     },
 
     init() {
+        if (this.queryParams.query && this.queryParams.category) {
+            const url = new URL(window.location.href);
+            url.pathname = "/products";
+            url.searchParams.set("query", this.queryParams.query);
+            url.searchParams.delete("category");
+            window.history.replaceState({}, "", url.toString());
+
+            this.queryParams.category = null;
+            this.queryParams.attribute = {};
+            this.queryParams.fromPrice = 0;
+            this.queryParams.toPrice = maxPrice;
+            this.categoryName = "";
+            this.categoryBanner = null;
+
+            if (this.$refs?.priceRange?.noUiSlider) {
+                this.$refs.priceRange.noUiSlider.set([minPrice, maxPrice]);
+            }
+        } else if (this.queryParams.query) {
+            this.currentPage = 1;
+            this.queryParams.page = 1;
+            this.queryParams.attribute = {};
+            this.queryParams.fromPrice = 0;
+            this.queryParams.toPrice = maxPrice;
+
+            if (this.$refs?.priceRange?.noUiSlider) {
+                this.$refs.priceRange.noUiSlider.set([minPrice, maxPrice]);
+            }
+        }
         this.initPriceFilter();
         this.fetchProducts();
         this.initLatestProductsSlider();
@@ -162,6 +200,12 @@ Alpine.data("ProductIndex", () => ({
         this.queryParams.category = category.slug;
         this.queryParams.attribute = {};
         this.queryParams.page = 1;
+        this.queryParams.fromPrice = 0;
+        this.queryParams.toPrice = maxPrice;
+
+        if (this.$refs?.priceRange?.noUiSlider) {
+            this.$refs.priceRange.noUiSlider.set([minPrice, maxPrice]);
+        }
 
         this.fetchProducts();
 
@@ -172,12 +216,13 @@ Alpine.data("ProductIndex", () => ({
             );
 
             window.history.replaceState(null, "", url.toString());
-
+            updatePageTitle(category);
             return;
         }
 
         url.searchParams.set("category", category.slug);
         window.history.replaceState({}, "", url);
+        updatePageTitle(category);
     },
 
     changePage(page) {
@@ -198,6 +243,7 @@ Alpine.data("ProductIndex", () => ({
             });
 
             this.products = response.data.products;
+            this.preloadFirstProductImage();
 
             if (options.updateAttributeFilters) {
                 this.attributeFilters = response.data.attributes;
@@ -207,6 +253,23 @@ Alpine.data("ProductIndex", () => ({
         } finally {
             this.fetchingProducts = false;
         }
+    },
+
+    preloadFirstProductImage() {
+        const first = Array.isArray(this.products?.data) ? this.products.data[0] : null;
+        const base = first?.base_image || null;
+        if (!base) return;
+        const href = base.grid_avif_url || base.grid_webp_url || base.grid_jpeg_url || base.path;
+        if (!href) return;
+        if (document.querySelector(`link[rel="preload"][as="image"][href="${href}"]`)) return;
+        const link = document.createElement("link");
+        link.rel = "preload";
+        link.as = "image";
+        link.href = href;
+        link.fetchPriority = "high";
+        link.setAttribute("imagesrcset", href);
+        link.setAttribute("imagesizes", "(min-width: 768px) 400px, 50vw");
+        document.head.appendChild(link);
     },
 
     initLatestProductsSlider() {

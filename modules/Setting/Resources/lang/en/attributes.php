@@ -90,6 +90,17 @@ return [
     'translatable.free_shipping_label' => 'Label',
     'free_shipping_min_amount' => 'Minimum Amount',
 
+    // Review Campaign
+    'review_request_enabled' => 'Status',
+    'review_request_delay_days' => 'Delay (Days)',
+    'review_request_second_delay_days' => 'Second Delay (Days)',
+    'review_coupon_enabled' => 'Status',
+    'review_coupon_discount_percent' => 'Discount (%)',
+    'review_coupon_valid_days' => 'Validity (Days)',
+    'review_request_email_title' => 'Email Title',
+    'review_request_email_intro' => 'Email Intro',
+    'review_request_email_promo' => 'Email Promo',
+
     'local_pickup_enabled' => 'Status',
     'translatable.local_pickup_label' => 'Label',
     'local_pickup_cost' => 'Cost',
@@ -97,6 +108,12 @@ return [
     'flat_rate_enabled' => 'Status',
     'translatable.flat_rate_label' => 'Label',
     'flat_rate_cost' => 'Cost',
+
+    'smart_shipping_enabled' => 'Status',
+    'smart_shipping_name' => 'Name',
+    'smart_shipping_description' => 'Description',
+    'smart_shipping_base_rate' => 'Base rate',
+    'smart_shipping_free_threshold' => 'Free shipping threshold',
 
     'paypal_enabled' => 'Status',
     'translatable.paypal_label' => 'Label',
@@ -205,6 +222,13 @@ return [
     'cod_enabled' => 'Status',
     'translatable.cod_label' => 'Label',
     'translatable.cod_description' => 'Description',
+    'cod_control_enabled' => 'Enable COD rules',
+    'cod_min_subtotal' => 'COD minimum subtotal',
+    'cod_max_subtotal' => 'COD maximum subtotal',
+    'cod_fee_mode' => 'COD fee mode',
+    'cod_fee_amount' => 'COD fee amount',
+    'cod_fee_percent' => 'COD fee percent',
+    'cod_fee_display_mode' => 'COD fee display mode',
 
     'bank_transfer_enabled' => 'Status',
     'translatable.bank_transfer_label' => 'Label',

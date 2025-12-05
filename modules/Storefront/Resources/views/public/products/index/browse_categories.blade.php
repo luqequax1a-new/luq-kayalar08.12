@@ -18,7 +18,8 @@
                     changeCategory({
                         name: "{{ addslashes($category->name) }}",
                         banner: {{ $category->banner }},
-                        slug: "{{ $category->slug }}"
+                        slug: "{{ $category->slug }}",
+                        meta_title: "{{ addslashes($category->meta_title ?: ($category->name . ' | ' . setting('store_name'))) }}"
                     })
                 '
             >

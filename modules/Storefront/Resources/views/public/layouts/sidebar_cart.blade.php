@@ -45,10 +45,6 @@
             </h5>
 
             <div class="sidebar-cart-actions">
-                <button type="button" @click="clearCart" class="btn btn-clear-cart">
-                    {{ trans('storefront::layouts.clear_cart') }}
-                </button>
-
                 @if (! request()->routeIs('cart.index'))
                     <a href="{{ route('cart.index') }}" class="btn btn-default btn-view-cart">
                         {{ trans('storefront::layouts.view_cart') }}

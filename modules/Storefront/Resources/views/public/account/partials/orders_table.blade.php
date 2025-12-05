@@ -5,6 +5,7 @@
             <th>{{ trans('storefront::account.orders.order_id') }}</th>
             <th>{{ trans('storefront::account.date') }}</th>
             <th>{{ trans('storefront::account.status') }}</th>
+            <th>{{ trans('storefront::account.view_order.payment_method') }}</th>
             <th>{{ trans('storefront::account.orders.total') }}</th>
             <th>{{ trans('storefront::account.orders.tracking') }}</th>
             <th>{{ trans('storefront::account.action') }}</th>
@@ -24,6 +25,9 @@
                     <span class="badge {{ order_status_badge_class($order->status) }}">
                         {{ $order->status() }}
                     </span>
+                </td>
+                <td>
+                    {{ $order->payment_method }}
                 </td>
                 <td>
                     {{ $order->total->convert($order->currency, $order->currency_rate)->format($order->currency) }}

@@ -91,6 +91,27 @@
                     </div>
                 </div>
 
+                <div class="form-group row">
+                    <label
+                        for="list-variants-separately"
+                        class="col-sm-3 control-label text-left"
+                    >
+                        Bu ürün ayrı listelensin mi?
+                    </label>
+
+                    <div class="col-sm-5">
+                        <select
+                            name="list_variants_separately"
+                            id="list-variants-separately"
+                            class="form-control custom-select-black"
+                            v-model="form.list_variants_separately"
+                        >
+                            <option :value="false">Hayır</option>
+                            <option :value="true">Evet</option>
+                        </select>
+                    </div>
+                </div>
+
                 <BulkEditVariants />
 
                 <transition-group
@@ -803,12 +824,13 @@
                                                                 :name="`variants.${variant.uid}.qty`"
                                                                 :min="unitMin"
                                                                 :step="unitStep"
-                                                                inputmode="decimal"
+                                                                :inputmode="qtyInputMode"
                                                                 :id="`variants-${variant.uid}-qty`"
                                                                 class="form-control"
                                                                 @wheel="
                                                                     $event.target.blur()
                                                                 "
+                                                                @input="onVariantQtyInput($event, variant)"
                                                                 v-model.number="
                                                                     variant.qty
                                                                 "
@@ -1015,6 +1037,21 @@ const unitStep = computed(() => {
 const unitMin = computed(() => {
     return selectedUnit.value ? Number(selectedUnit.value.min || 0) : 0;
 });
+
+const qtyInputMode = computed(() => {
+    return selectedUnit.value && selectedUnit.value.is_decimal_stock ? "decimal" : "numeric";
+});
+
+function onVariantQtyInput(e, v) {
+    const allowDecimal = selectedUnit.value && selectedUnit.value.is_decimal_stock;
+    if (!allowDecimal && e && e.target) {
+        const val = String(e.target.value || "");
+        if (val.includes(".")) {
+            e.target.value = String(Math.trunc(Number(val)) || "");
+            v.qty = Number(e.target.value || 0);
+        }
+    }
+}
 
 function generateSku(uid) {
     const letters = Array.from({ length: 3 }, () =>

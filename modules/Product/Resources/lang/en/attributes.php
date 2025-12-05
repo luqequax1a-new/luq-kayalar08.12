@@ -9,6 +9,7 @@ return [
     'categories' => 'Categories',
     'tax_class_id' => 'Tax Class',
     'sale_unit_id' => 'Sale Unit',
+    'primary_category_id' => 'Primary Category',
     'tags' => 'Tags',
     'is_virtual' => 'Virtual',
     'is_active' => 'Status',

@@ -6,21 +6,25 @@
             <div class="billing-address">
                 <h5 class="pull-left">{{ trans('order::orders.billing_address') }}</h5>
 
-                <span>
-                    {{ $order->billing_full_name }}
-                    <br>
-                    {{ $order->billing_address_1 }}
-                    <br>
-
-                    @if ($order->billing_address_2)
-                        {{ $order->billing_address_2 }}
-                        <br>
-                    @endif
-
-                    {{ $order->billing_city }}, {!! $order->billing_state_name !!} {{ $order->billing_zip }}
-                    <br>
-                    {{ $order->billing_country_name }}
-                </span>
+                @php($billing = $order->billingAddress)
+                @php($shipping = $order->shippingAddress)
+                @if ($billing && $order->shipping_address_id !== $order->billing_address_id)
+                    <span>
+                        Firma Adı: {{ $billing->company_name }}<br>
+                        Vergi No: {{ $billing->tax_number }}<br>
+                        Vergi Dairesi: {{ $billing->tax_office }}<br>
+                        {{ $billing->phone }}<br>
+                        {{ $billing->address_line ?? $billing->address_1 }}<br>
+                        {{ $billing->city ?? $billing->city_id }} / {{ $billing->state ?? $billing->district_id }}
+                    </span>
+                @elseif ($shipping)
+                    <span>
+                        {{ $shipping->first_name }} {{ $shipping->last_name }}<br>
+                        {{ $shipping->phone }}<br>
+                        {{ $shipping->address_line ?? $shipping->address_1 }}<br>
+                        {{ $shipping->city ?? $shipping->city_id }} / {{ $shipping->state ?? $shipping->district_id }}
+                    </span>
+                @endif
             </div>
         </div>
 
@@ -28,21 +32,15 @@
             <div class="shipping-address">
                 <h5 class="pull-left">{{ trans('order::orders.shipping_address') }}</h5>
 
-                <span>
-                    {{ $order->shipping_full_name }}
-                    <br>
-                    {{ $order->shipping_address_1 }}
-                    <br>
-
-                    @if ($order->shipping_address_2)
-                        {{ $order->shipping_address_2 }}
-                        <br>
-                    @endif
-
-                    {{ $order->shipping_city }}, {!! $order->shipping_state_name !!} {{ $order->shipping_zip }}
-                    <br>
-                    {{ $order->shipping_country_name }}
-                </span>
+                @php($shipping = $shipping)
+                @if ($shipping)
+                    <span>
+                        {{ $shipping->first_name }} {{ $shipping->last_name }}<br>
+                        {{ $shipping->phone }}<br>
+                        {{ $shipping->address_line ?? $shipping->address_1 }}<br>
+                        {{ $shipping->city ?? $shipping->city_id }} / {{ $shipping->state ?? $shipping->district_id }}
+                    </span>
+                @endif
             </div>
         </div>
     </div>

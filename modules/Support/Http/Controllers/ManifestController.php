@@ -8,6 +8,7 @@ class ManifestController
 {
     public function json(ManifestService $manifestService)
     {
+        app(\Modules\Support\Services\PWAService::class)->ensureDefaultIcons();
         return response()->json(
             $manifestService->generate(),
             options: JSON_UNESCAPED_SLASHES
@@ -20,4 +21,3 @@ class ManifestController
         return view('support::pwa.offline');
     }
 }
-

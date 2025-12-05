@@ -80,6 +80,9 @@
                                     <div class="hide" id="slug-field">
                                         {{ Form::text('slug', trans('category::attributes.slug'), $errors) }}
                                     </div>
+
+                                    {{ Form::text('meta_title', trans('category::attributes.meta_title'), $errors) }}
+                                    {{ Form::textarea('meta_description', trans('category::attributes.meta_description'), $errors, null, ['rows' => 3]) }}
                                 </div>
                             </div>
 

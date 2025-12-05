@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use Modules\Support\Eloquent\Model;
 use Modules\Product\Entities\Product;
 use Modules\Review\Admin\ReviewTable;
+use Modules\Media\Eloquent\HasMedia;
+ 
 
 class Review extends Model
 {
@@ -35,12 +37,32 @@ class Review extends Model
      */
     protected $appends = ['rating_percent', 'status', 'created_at_formatted'];
 
+    use HasMedia;
+
 
     public static function countAndAvgRating(Product $product)
     {
-        return self::select(DB::raw('count(*) as count, avg(rating) as avg_rating'))
+        $stats = self::select(DB::raw('count(*) as count, avg(rating) as avg_rating'))
             ->where('product_id', $product->id)
             ->first();
+
+        $dist = self::where('product_id', $product->id)
+            ->select(
+                DB::raw('sum(case when rating = 5 then 1 else 0 end) as count_5'),
+                DB::raw('sum(case when rating = 4 then 1 else 0 end) as count_4'),
+                DB::raw('sum(case when rating = 3 then 1 else 0 end) as count_3'),
+                DB::raw('sum(case when rating = 2 then 1 else 0 end) as count_2'),
+                DB::raw('sum(case when rating = 1 then 1 else 0 end) as count_1')
+            )
+            ->first();
+
+        $stats->count_5 = (int) ($dist->count_5 ?? 0);
+        $stats->count_4 = (int) ($dist->count_4 ?? 0);
+        $stats->count_3 = (int) ($dist->count_3 ?? 0);
+        $stats->count_2 = (int) ($dist->count_2 ?? 0);
+        $stats->count_1 = (int) ($dist->count_1 ?? 0);
+
+        return $stats;
     }
 
 
@@ -87,7 +109,7 @@ class Review extends Model
 
     public function getCreatedAtFormattedAttribute()
     {
-        return $this->created_at->toFormattedDateString();
+        return $this->created_at ? $this->created_at->format('d.m.Y') : null;
     }
 
 
@@ -101,6 +123,7 @@ class Review extends Model
     {
         return $this->belongsTo(User::class, 'reviewer_id');
     }
+
 
 
     /**
@@ -121,5 +144,20 @@ class Review extends Model
             });
 
         return new ReviewTable($query);
+    }
+
+    
+    public function extractMediaFromRequest(): mixed
+    {
+        $payload = [];
+        if (request()->hasFile('images')) {
+            // Attach uploaded files under zone 'review_images' after controller persists File records
+            // Here we only map to expected structure if IDs are passed
+            $fileIds = array_filter((array) request('files.review_images', []));
+            if (!empty($fileIds)) {
+                $payload['review_images'] = $fileIds;
+            }
+        }
+        return $payload;
     }
 }
