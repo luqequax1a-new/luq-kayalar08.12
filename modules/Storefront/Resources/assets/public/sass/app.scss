@@ -39,6 +39,143 @@
     display: none !important;
 }
 
+.popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    padding: 16px;
+}
+
+.popup-modal {
+    background: #ffffff;
+    border-radius: 16px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.25);
+    overflow: hidden;
+    position: relative;
+}
+
+@media (min-width: 768px) {
+    .popup-modal {
+        max-width: 480px;
+    }
+}
+
+.popup-image img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.popup-image {
+    position: relative;
+}
+
+.popup-image-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    border: none;
+    background: rgba(0, 0, 0, 0.55);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.popup-image-arrow--left {
+    left: 10px;
+}
+
+.popup-image-arrow--right {
+    right: 10px;
+}
+
+.popup-content {
+    padding: 18px 20px 20px;
+}
+
+.popup-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    color: var(--color-black);
+}
+
+.popup-subtitle {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0 0 10px;
+}
+
+.popup-body {
+    font-size: 14px;
+    color: #4b5563;
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+.popup-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    align-items: center;
+    justify-content: center;
+}
+
+.popup-cta {
+    padding-inline: 18px;
+    border-radius: 6px;
+}
+
+.popup-close-link {
+    font-size: 13px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid #000;
+    background: #000;
+    color: #ffffff;
+    text-decoration: none;
+}
+
+.popup-close-link:hover {
+    background: #111827;
+    border-color: #000;
+    color: #ffffff;
+}
+
+.popup-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid rgba(15, 23, 42, 0.55);
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    color: #ffffff;
+    z-index: 5;
+}
+
+.popup-close:hover {
+    background: #111827;
+}
+
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;

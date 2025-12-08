@@ -15,6 +15,7 @@ use Modules\Menu\MegaMenu\MegaMenu;
 use Illuminate\Support\Facades\Cache;
 use Modules\Category\Entities\Category;
 use Modules\Product\Entities\SearchTerm;
+use Modules\Address\StoreAddress;
 
 class LayoutComposer
 {
@@ -214,9 +215,106 @@ class LayoutComposer
 
     private function getSchemaMarkup()
     {
-        return Schema::webSite()
-            ->url(route('home'))
+        $homeUrl = route('home');
+
+        $webSite = Schema::webSite()
+            ->name(setting('store_name') ?: config('app.name'))
+            ->url($homeUrl)
             ->potentialAction($this->searchActionSchema());
+
+        $address = new StoreAddress();
+
+        $org = Schema::store()
+            ->name('Kayalar Manifatura')
+            ->url($homeUrl)
+            ->email('kayalarmanifatura@gmail.com');
+
+        try {
+            $street = '873 Sokak No:21';
+            $city = 'Konak';
+            $region = 'İzmir';
+            $country = (string) (setting('store_country') ?: 'TR');
+
+            $postal = $address->getZip();
+
+            $postalAddress = Schema::postalAddress()
+                ->streetAddress($street)
+                ->addressLocality($city)
+                ->addressRegion($region)
+                ->addressCountry($country);
+
+            if ($postal) {
+                $postalAddress->postalCode($postal);
+            }
+
+            $org->address($postalAddress);
+        } catch (\Throwable $e) {
+        }
+
+        try {
+            $phone = setting('store_phone');
+            if ($phone) {
+                $org->telephone($phone);
+            }
+        } catch (\Throwable $e) {
+        }
+
+        try {
+            $logoPath = $this->getHeaderLogo();
+            if ($logoPath) {
+                $logoUrl = url($logoPath);
+                $org->logo($logoUrl);
+
+                // Local Business için image alanını da doldur (logo ile aynı görsel)
+                $org->image($logoUrl);
+            }
+        } catch (\Throwable $e) {
+        }
+
+        // Çalışma saatleri: Pazartesi-Cumartesi 08:00-18:00, Pazar 11:00-17:00
+        try {
+            $weekDays = [
+                'Monday',
+                'Tuesday',
+                'Wednesday',
+                'Thursday',
+                'Friday',
+                'Saturday',
+            ];
+
+            $monSat = Schema::openingHoursSpecification()
+                ->dayOfWeek($weekDays)
+                ->opens('08:00')
+                ->closes('18:00');
+
+            $sun = Schema::openingHoursSpecification()
+                ->dayOfWeek('Sunday')
+                ->opens('11:00')
+                ->closes('17:00');
+
+            $org->openingHoursSpecification([$monSat, $sun]);
+        } catch (\Throwable $e) {
+        }
+
+        // Fiyat aralığı (isteğe bağlı) - orta seviye fiyatlandırma için sembolik ifade
+        try {
+            $org->priceRange('₺₺');
+        } catch (\Throwable $e) {
+        }
+
+        // Sosyal medya bağlantıları (sameAs)
+        try {
+            $org->sameAs([
+                'https://www.instagram.com/kayalarmanifatura',
+                'https://www.facebook.com/kayalarmanifatura',
+            ]);
+        } catch (\Throwable $e) {
+        }
+
+        // Bu Spatie sürümünde Schema::graph() yok; WebSite içine Organization'ı publisher olarak ekleyelim.
+        $webSite->publisher($org);
+
+        return $webSite;
     }
 
 

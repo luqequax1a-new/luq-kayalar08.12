@@ -20,6 +20,10 @@ use Modules\Product\Http\Middleware\SetProductSortOption;
 use Modules\Product\Entities\UrlRedirect;
 use Mcamara\LaravelLocalization\Facades\LaravelLocalization;
 use Illuminate\Support\Str;
+use Modules\Category\Entities\Category;
+use Modules\DynamicCategory\Entities\DynamicCategory;
+use Modules\DynamicCategory\Services\DynamicCategoryProductService;
+use Modules\Product\Events\ShowingProductList;
  
 
 class ProductController extends Controller
@@ -48,6 +52,117 @@ class ProductController extends Controller
     public function index(Product $model, ProductFilter $productFilter)
     {
         if (request()->expectsJson()) {
+            $categorySlug = request('category');
+
+            if ($categorySlug) {
+                $category = Category::findBySlug($categorySlug);
+
+                // Normal kategori varsa mevcut akış
+                if ($category->exists) {
+                    return $this->searchProducts($model, $productFilter);
+                }
+
+                // Normal kategori yoksa, dinamik kategori dene
+                $dynamicCategory = DynamicCategory::where('slug', $categorySlug)->first();
+
+                if ($dynamicCategory) {
+                    $service = new DynamicCategoryProductService();
+                    $query = $service->buildQuery($dynamicCategory);
+
+                    $perPage = (int) request('perPage', 30);
+                    $page = max(1, (int) request('page', 1));
+
+                    $all = $query->get();
+                    $all->load([
+                        'variants' => function ($q) {
+                            $q->orderBy('position');
+                        },
+                        'variations',
+                        'tags',
+                        'tags.tagBadges' => function ($q) {
+                            $q->active();
+                        },
+                    ]);
+
+                    $items = $all->flatMap(function (Product $product) {
+                        $tagBadges = $product->badgeVisualsFor('listing')->map(function ($badge) {
+                            return [
+                                'name' => $badge->name,
+                                'image_url' => $badge->image_url,
+                                'listing_position' => $badge->listing_position,
+                                'detail_position' => $badge->detail_position,
+                                'priority' => $badge->priority,
+                            ];
+                        })->values();
+                        $variantLabel = optional($product->variations->first())->name;
+                        if ($product->list_variants_separately) {
+                            $variants = $product->variants()->orderBy('position')->get();
+                            $actives = $variants->filter(function ($v) {
+                                return (bool) ($v->is_active ?? false);
+                            });
+
+                            if ($actives->isNotEmpty()) {
+                                return $actives->map(function ($variant) use ($product, $tagBadges, $variantLabel) {
+                                    $p = $product->clean();
+                                    $p['variant_attribute_label'] = $variantLabel;
+                                    $p['name'] = $product->name;
+                                    $p['variant'] = $variant->toArray();
+                                    $p['url'] = $variant->url() ?? $product->url();
+                                    $p['base_image'] = ($variant->base_image ?? $product->base_image);
+                                    $p['base_image_thumb'] = [
+                                        'path' => media_variant_url(($variant->base_image ?? $product->base_image), 400)
+                                    ];
+                                    $p['variant']['base_image_thumb'] = [
+                                        'path' => media_variant_url(($variant->base_image ?? $product->base_image), 80)
+                                    ];
+                                    $p['formatted_price'] = $variant->formatted_price ?? $product->formatted_price;
+                                    $p['formatted_price_range'] = null;
+                                    $p['reviews_count'] = $product->reviews_count ?? ($product->relationLoaded('reviews') ? $product->reviews->count() : 0);
+                                    $p['rating_percent'] = $product->rating_percent;
+                                    $p['tag_badges'] = $tagBadges;
+                                    return $p;
+                                });
+                            }
+                        }
+
+                        $base = $product->clean();
+                        $base['variant_attribute_label'] = $variantLabel;
+                        $base['reviews_count'] = $product->reviews_count ?? ($product->relationLoaded('reviews') ? $product->reviews->count() : 0);
+                        $base['rating_percent'] = $product->rating_percent;
+                        $base['base_image_thumb'] = [
+                            'path' => media_variant_url($product->base_image, 400)
+                        ];
+                        $base['tag_badges'] = $tagBadges;
+
+                        return collect([$base]);
+                    })->values();
+
+                    $total = $items->count();
+                    $sliced = $items->forPage($page, $perPage)->values();
+                    $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+                        $sliced,
+                        $total,
+                        $perPage,
+                        $page,
+                        [
+                            'path' => request()->url(),
+                            'query' => request()->query(),
+                        ]
+                    );
+
+                    event(new ShowingProductList($paginator));
+
+                    return response()->json([
+                        'products' => $paginator,
+                        'attributes' => collect(),
+                        'category' => [
+                            'description_html' => '',
+                            'faq_items' => [],
+                        ],
+                    ]);
+                }
+            }
+
             return $this->searchProducts($model, $productFilter);
         }
 

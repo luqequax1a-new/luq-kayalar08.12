@@ -74,7 +74,6 @@
     @php(
         $homeLogo = ($logo ?? null)
             ?: setting('store_logo')
-            ?: asset('build/assets/image-placeholder.png')
     )
 
     <meta name="description" content="{{ $homeDescription }}">
@@ -83,7 +82,9 @@
     <meta property="og:title" content="{{ $homeTitle }}">
     <meta property="og:description" content="{{ $homeDescription }}">
     <meta property="og:url" content="{{ url()->current() }}">
-    <meta property="og:image" content="{{ $homeLogo }}">
+    @if (! empty($homeLogo))
+        <meta property="og:image" content="{{ $homeLogo }}">
+    @endif
     <meta property="og:locale" content="{{ locale() }}">
 
     @foreach (supported_locale_keys() as $code)
@@ -93,7 +94,9 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ $homeTitle }}">
     <meta name="twitter:description" content="{{ $homeDescription }}">
-    <meta name="twitter:image" content="{{ $homeLogo }}">
+    @if (! empty($homeLogo))
+        <meta name="twitter:image" content="{{ $homeLogo }}">
+    @endif
 @endpush
 
 @push('globals')

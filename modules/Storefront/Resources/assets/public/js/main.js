@@ -12,6 +12,7 @@ import "./layouts/SidebarCart";
 import "./layouts/CookieBar";
 import "./layouts/NewsletterSubscription";
 import "./layouts/NewsletterPopup";
+import "./layouts/Popup";
 import "./layouts/ScrollToTop";
 
 document.addEventListener("DOMContentLoaded", () => {

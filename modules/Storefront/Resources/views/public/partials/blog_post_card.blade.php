@@ -5,7 +5,33 @@
             class="blog-post-featured-image overflow-hidden"
         >
             @if ($blogPost->featured_image->path)
-                <img src="{{ $blogPost->featured_image->path }}" alt="Featured image" loading="lazy" />
+                @php(
+                    $imageAvif = $blogPost->featured_image->grid_avif_url
+                        ?? $blogPost->featured_image->detail_avif_url
+                        ?? null
+                )
+                @php(
+                    $imageWebp = $blogPost->featured_image->grid_webp_url
+                        ?? $blogPost->featured_image->detail_webp_url
+                        ?? null
+                )
+                @php(
+                    $imageJpeg = $blogPost->featured_image->grid_jpeg_url
+                        ?? $blogPost->featured_image->detail_jpeg_url
+                        ?? $blogPost->featured_image->path
+                )
+
+                <picture>
+                    @if ($imageAvif)
+                        <source srcset="{{ $imageAvif }}" type="image/avif">
+                    @endif
+
+                    @if ($imageWebp)
+                        <source srcset="{{ $imageWebp }}" type="image/webp">
+                    @endif
+
+                    <img src="{{ $imageJpeg }}" alt="Featured image" loading="lazy" />
+                </picture>
             @else
                 <div class="image-placeholder">
                     <img src="{{ asset('build/assets/image-placeholder.png') }}" alt="Featured image" loading="lazy" />

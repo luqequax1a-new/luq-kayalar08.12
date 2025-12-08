@@ -13,7 +13,7 @@ class ProductTable extends AdminTable
      *
      * @var array
      */
-    protected array $rawColumns = ['price', 'in_stock', 'status', 'actions', 'name'];
+    protected array $rawColumns = ['price', 'in_stock', 'status', 'actions', 'name', 'brand'];
 
 
     /**
@@ -52,29 +52,55 @@ class ProductTable extends AdminTable
                     $promoRange = $promoMinFmt === $promoMaxFmt ? $promoMinFmt : "$promoMinFmt - $promoMaxFmt";
 
                     if ($originalRange !== $promoRange) {
-                        return "<div class='price-cell'><div class='price-top'><del class='text-red'>{$originalRange}</del></div><div class='price-bottom'>{$promoRange}</div></div>";
+                        return "<div class='price-cell' data-id='{$product->id}'><div class='price-top'><del class='text-red'>{$originalRange}</del></div><div class='price-bottom'>{$promoRange}</div></div>";
                     }
 
-                    return "<div class='price-cell'><div class='price-bottom'>{$originalRange}</div></div>";
+                    return "<div class='price-cell' data-id='{$product->id}'><div class='price-bottom'>{$originalRange}</div></div>";
                 }
 
                 // single/variant default
                 $priceHtml = product_price_formatted($product->variant ?? $product, function ($price, $specialPrice) use ($product) {
                     if ($product->variant ? $product->variant->hasSpecialPrice() : $product->hasSpecialPrice()) {
-                        return "<div class='price-cell'><div class='price-top'><del class='text-red'>{$price}</del></div><div class='price-bottom'>{$specialPrice}</div></div>";
+                        return "<div class='price-cell' data-id='{$product->id}'><div class='price-top'><del class='text-red'>{$price}</del></div><div class='price-bottom'>{$specialPrice}</div></div>";
                     }
-                    return "<div class='price-cell'><div class='price-bottom'>{$price}</div></div>";
+                    return "<div class='price-cell' data-id='{$product->id}'><div class='price-bottom'>{$price}</div></div>";
                 });
 
                 return $priceHtml;
             })
+            ->addColumn('brand', function (Product $product) {
+                $rawName = optional($product->brand)->name;
+                $name = $rawName !== null && $rawName !== '' ? e($rawName) : '&mdash;';
+                $id = (int) $product->id;
+                $brandId = $product->brand_id ? (int) $product->brand_id : '';
+
+                return "<span class='brand-cell' data-id='{$id}' data-brand-id='{$brandId}'>{$name}</span>";
+            })
             ->addColumn('default_category', function (Product $product) {
-                $name = optional($product->primaryCategory)->name;
-                if (!$name) {
-                    $seo = $product->seoCategory();
-                    $name = $seo ? $seo->name : '';
+                // Default category is always and only primaryCategory.
+                // If current locale translation is empty, fall back to any available translation.
+                $category = $product->primaryCategory;
+
+                if (!$category) {
+                    return '';
                 }
-                return e($name);
+
+                $name = $category->name;
+
+                if ($name === null || $name === '') {
+                    try {
+                        $translation = $category->translations()
+                            ->withoutGlobalScope('locale')
+                            ->first();
+                        if ($translation && isset($translation->name)) {
+                            $name = $translation->name;
+                        }
+                    } catch (\Throwable $e) {
+                        // ignore translation fallback errors
+                    }
+                }
+
+                return e($name ?: '');
             })
             ->editColumn('in_stock', function (Product $product) {
                 $clickable = (bool) $product->manage_stock || ($product->variants && $product->variants->where('manage_stock', true)->count() > 0);

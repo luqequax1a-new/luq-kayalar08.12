@@ -33,7 +33,13 @@ class StorefrontTabs extends Tabs
             ->add($this->newsletter())
             ->add($this->features())
             ->add($this->productPage())
-            ->add($this->socialLinks());
+            ->add($this->socialLinks())
+            ->add($this->customizations())
+            ->add($this->productGrid())
+            ->add($this->threeColumnBanners())
+            ->add($this->productTabsTwo())
+            ->add($this->oneColumnBanner())
+            ->add($this->blogs());
 
 
         $this->group('home_page_sections', trans('storefront::storefront.tabs.group.home_page_sections'))
@@ -81,6 +87,20 @@ class StorefrontTabs extends Tabs
                 'pages' => $this->getPages(),
                 'sliders' => $this->getSliders(),
             ]);
+        });
+    }
+
+
+    private function customizations()
+    {
+        return tap(new Tab('customizations', 'Özelleştirmeler'), function (Tab $tab) {
+            $tab->weight(27);
+
+            $tab->fields([
+                'storefront_grid_variant_badge_enabled',
+            ]);
+
+            $tab->view('storefront::admin.storefront.tabs.customizations');
         });
     }
 

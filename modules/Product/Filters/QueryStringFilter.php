@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Query\JoinClause;
 use Modules\Attribute\Entities\Attribute;
 use Modules\Attribute\Entities\AttributeValue;
+use Modules\Category\Entities\Category;
 
 class QueryStringFilter
 {
@@ -126,9 +127,19 @@ class QueryStringFilter
 
     public function category($query, $slug)
     {
-        $query->whereHas('categories', function ($categoryQuery) use ($slug) {
-            $categoryQuery->where('slug', $slug);
-        });
+        $category = Category::where('slug', $slug)->first();
+
+        if ($category) {
+            $categoryIds = $category->descendantsAndSelfIds();
+
+            $query->whereHas('categories', function ($categoryQuery) use ($categoryIds) {
+                $categoryQuery->whereIn('categories.id', $categoryIds);
+            });
+        } else {
+            $query->whereHas('categories', function ($categoryQuery) use ($slug) {
+                $categoryQuery->where('slug', $slug);
+            });
+        }
     }
 
 

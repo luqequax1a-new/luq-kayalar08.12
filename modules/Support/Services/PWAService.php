@@ -15,14 +15,15 @@ class PWAService
         FileSystem::cleanDirectory($output_path);
 
         $ratios = [48, 72, 96, 128, 144, 152, 192, 384, 512];
-        $image_data = getimagesize($iconFile->path);
+        $sourcePath = $iconFile->realPath() ?: $iconFile->getRawOriginal('path');
+        $image_data = getimagesize($sourcePath);
         $orig_width = $image_data[0];
         $orig_height = $image_data[1];
         $media_type = $image_data['mime'];
 
         $orig = match ($media_type) {
-            'image/jpeg' => imagecreatefromjpeg($iconFile->path),
-            'image/png' => imagecreatefrompng($iconFile->path)
+            'image/jpeg' => imagecreatefromjpeg($sourcePath),
+            'image/png' => imagecreatefrompng($sourcePath)
         };
 
         foreach ($ratios as $ratio) {

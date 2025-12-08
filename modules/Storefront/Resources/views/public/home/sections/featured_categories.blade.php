@@ -16,11 +16,37 @@
                     >
                         <div class="featured-category-image">
                             @if ($tab['logo']->path)
-                                <img
-                                    src="{{ $tab['logo']->path }}"
-                                    alt="Category logo"
-                                    loading="lazy"
-                                />
+                                @php(
+                                    $logoAvif = $tab['logo']->thumb_avif_url
+                                        ?? $tab['logo']->grid_avif_url
+                                        ?? null
+                                )
+                                @php(
+                                    $logoWebp = $tab['logo']->thumb_webp_url
+                                        ?? $tab['logo']->grid_webp_url
+                                        ?? null
+                                )
+                                @php(
+                                    $logoJpeg = $tab['logo']->thumb_jpeg_url
+                                        ?? $tab['logo']->grid_jpeg_url
+                                        ?? $tab['logo']->path
+                                )
+
+                                <picture>
+                                    @if ($logoAvif)
+                                        <source srcset="{{ $logoAvif }}" type="image/avif">
+                                    @endif
+
+                                    @if ($logoWebp)
+                                        <source srcset="{{ $logoWebp }}" type="image/webp">
+                                    @endif
+
+                                    <img
+                                        src="{{ $logoJpeg }}"
+                                        alt="Category logo"
+                                        loading="lazy"
+                                    />
+                                </picture>
                             @else
                                 <img
                                     src="{{ asset('build/assets/image-placeholder.png') }}"

@@ -54,6 +54,83 @@
                                     {{ Form::text('name', trans('category::attributes.name'), $errors, null, ['required' => true]) }}
                                     {{ Form::checkbox('is_searchable', trans('category::attributes.is_searchable'), trans('category::categories.form.show_this_category_in_search_box'), $errors) }}
                                     {{ Form::checkbox('is_active', trans('category::attributes.is_active'), trans('category::categories.form.enable_the_category'), $errors) }}
+                                    {{ Form::wysiwyg('description', trans('category::categories.form.description'), $errors, null) }}
+
+                                    <div class="form-group">
+                                        <label class="col-md-3 control-label">
+                                            {{ trans('category::categories.form.faq') }}
+                                        </label>
+
+                                        <div class="col-md-9">
+                                            <div id="faq-items" class="faq-items">
+                                                @php($oldFaqs = old('faq_items', isset($category) && is_array($category->faq_items) ? $category->faq_items : []))
+
+                                                @forelse ($oldFaqs as $index => $item)
+                                                    <div class="faq-item-row panel panel-default m-b-10" data-index="{{ $index }}">
+                                                        <div class="panel-heading clearfix">
+                                                            <div class="pull-left" style="width: 70%;">
+                                                                <input
+                                                                    type="text"
+                                                                    name="faq_items[{{ $index }}][question]"
+                                                                    class="form-control input-sm faq-question-input"
+                                                                    placeholder="{{ trans('category::categories.form.faq_question_placeholder') }}"
+                                                                    value="{{ $item['question'] ?? '' }}"
+                                                                >
+                                                            </div>
+
+                                                            <div class="pull-right text-right" style="width: 30%;">
+                                                                <button type="button" class="btn btn-xs btn-default faq-move-up"><i class="fa fa-arrow-up"></i></button>
+                                                                <button type="button" class="btn btn-xs btn-default faq-move-down"><i class="fa fa-arrow-down"></i></button>
+                                                                <button type="button" class="btn btn-xs btn-danger faq-remove"><i class="fa fa-times"></i></button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="panel-body">
+                                                            <textarea
+                                                                name="faq_items[{{ $index }}][answer]"
+                                                                class="form-control input-sm faq-answer-textarea"
+                                                                rows="3"
+                                                                placeholder="{{ trans('category::categories.form.faq_answer_placeholder') }}"
+                                                            >{{ $item['answer'] ?? '' }}</textarea>
+                                                        </div>
+                                                    </div>
+                                                @empty
+                                                    <div class="faq-item-row panel panel-default m-b-10" data-index="0">
+                                                        <div class="panel-heading clearfix">
+                                                            <div class="pull-left" style="width: 70%;">
+                                                                <input
+                                                                    type="text"
+                                                                    name="faq_items[0][question]"
+                                                                    class="form-control input-sm faq-question-input"
+                                                                    placeholder="{{ trans('category::categories.form.faq_question_placeholder') }}"
+                                                                    value=""
+                                                                >
+                                                            </div>
+
+                                                            <div class="pull-right text-right" style="width: 30%;">
+                                                                <button type="button" class="btn btn-xs btn-default faq-move-up"><i class="fa fa-arrow-up"></i></button>
+                                                                <button type="button" class="btn btn-xs btn-default faq-move-down"><i class="fa fa-arrow-down"></i></button>
+                                                                <button type="button" class="btn btn-xs btn-danger faq-remove"><i class="fa fa-times"></i></button>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="panel-body">
+                                                            <textarea
+                                                                name="faq_items[0][answer]"
+                                                                class="form-control input-sm faq-answer-textarea"
+                                                                rows="3"
+                                                                placeholder="{{ trans('category::categories.form.faq_answer_placeholder') }}"
+                                                            ></textarea>
+                                                        </div>
+                                                    </div>
+                                                @endforelse
+                                            </div>
+
+                                            <button type="button" class="btn btn-default" id="add-faq-item">
+                                                {{ trans('category::categories.form.add_faq_item') }}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 @if (auth()->user()->hasAccess('admin.media.index'))

@@ -25,6 +25,7 @@ return [
         40 => '40',
         50 => '50',
     ],
+    'category_faq_title' => 'Frequently Asked Questions About :category',
     'no_products_found' => 'Oops! No products found.',
     'showing_results' => 'Showing :from-:to of :total results',
 ];

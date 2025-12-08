@@ -19,5 +19,10 @@ return [
         'enable_the_category' => 'Enable the category',
         'logo' => 'Logo',
         'banner' => 'Banner',
+        'description' => 'Description',
+        'faq' => 'FAQ (Frequently Asked Questions)',
+        'add_faq_item' => 'Add FAQ Item',
+        'faq_question_placeholder' => 'Enter question title',
+        'faq_answer_placeholder' => 'Enter answer text',
     ],
 ];

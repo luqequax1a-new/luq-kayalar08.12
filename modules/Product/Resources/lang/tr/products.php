@@ -16,6 +16,7 @@ return [
     'table' => [
         'thumbnail' => 'Küçük Görsel',
         'name' => 'Ad',
+        'brand' => 'Marka',
         'price' => 'Fiyat',
         'stock' => 'Stok',
     ],

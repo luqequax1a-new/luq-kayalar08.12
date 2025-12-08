@@ -5,12 +5,10 @@
 <meta name="theme-color" content="{{ $config['theme_color'] }}">
 
 <!-- Add to home-screen for Chrome on Android -->
-<meta name="mobile-web-app-capable" content="{{ $config['display'] == 'standalone' ? 'yes' : 'no' }}">
 <meta name="application-name" content="{{ $config['short_name'] }}">
 <!--/ Add to home-screen for Chrome on Android -->
 
 <!-- Add to home-screen for Safari on iOS -->
-<meta name="apple-mobile-web-app-capable" content="{{ $config['display'] == 'standalone' ? 'yes' : 'no' }}">
 <meta name="apple-mobile-web-app-status-bar-style" content="{{  $config['status_bar'] }}">
 <meta name="apple-mobile-web-app-title" content="{{ $config['short_name'] }}">
 <link rel="apple-touch-icon" href="{{ data_get(end($config['icons']), 'src') }}">

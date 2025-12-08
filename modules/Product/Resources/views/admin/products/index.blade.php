@@ -10,6 +10,35 @@
     @slot('buttons', ['create'])
     @slot('resource', 'products')
     @slot('name', trans('product::products.product'))
+    @slot('filters_form', '#product-filters')
+
+    @slot('filters')
+        <form id="product-filters" class="form-inline">
+            <div class="form-group" style="margin-right: 8px;">
+                <label for="filter-brand" style="margin-right:4px;">Marka</label>
+                <select name="brand_id" id="filter-brand" class="form-control input-sm">
+                    <option value="">Tümü</option>
+                    @isset($brands)
+                        @foreach ($brands as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    @endisset
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-right: 8px;">
+                <label for="filter-category" style="margin-right:4px;">Kategori</label>
+                <select name="category_id" id="filter-category" class="form-control input-sm">
+                    <option value="">Tümü</option>
+                    @isset($categories)
+                        @foreach ($categories as $id => $name)
+                            <option value="{{ $id }}">{{ $name }}</option>
+                        @endforeach
+                    @endisset
+                </select>
+            </div>
+        </form>
+    @endslot
 
     @slot('thead')
         @include('product::admin.products.partials.thead', ['name' => 'products-index'])
@@ -37,6 +66,7 @@
 
     @push('scripts')
     <script type="module">
+        const allBrands = @json($brands ?? []);
         DataTable.set('#products-table .table', {
             routePrefix: 'products',
             routes: {
@@ -46,17 +76,30 @@
         });
 
         const dt = new DataTable('#products-table .table', {
+            stateSave: false,
             columns: [
                 { data: 'checkbox', orderable: false, searchable: false, width: '3%' },
                 { data: 'id', width: '5%' },
                 { data: 'thumbnail', orderable: false, searchable: false, width: '10%' },
                 { data: 'name', name: 'translations.name', class: 'name', orderable: false, defaultContent: '' },
+                { data: 'brand', name: 'brand.translations.name', orderable: false, searchable: false },
                 { data: 'default_category', orderable: false, searchable: false },
                 { data: 'price', searchable: false },
                 { data: 'in_stock', name: 'in_stock', searchable: false, className: 'stock-cell' },
-                { data: 'status', name: 'is_active', searchable: false, orderable: false },
+                { data: 'status', name: 'is_active', searchable: false },
                 { data: 'actions', orderable: false, searchable: false },
             ]
+        });
+
+        const $brandFilter = $('#filter-brand');
+        const $categoryFilter = $('#filter-category');
+
+        $brandFilter.on('change', function () {
+            DataTable.reload('#products-table .table');
+        });
+
+        $categoryFilter.on('change', function () {
+            DataTable.reload('#products-table .table');
         });
 
         $(document).on('change', '.product-status-switch', function () {
@@ -77,6 +120,224 @@
                 .finally(() => {
                     checkbox.prop('disabled', false);
                 });
+        });
+
+        // Pricing drawer
+        const pricingDrawer = document.getElementById('pricing-drawer');
+        const pricingDrawerBackdrop = document.getElementById('pricing-drawer-backdrop');
+        const pricingDrawerContent = document.getElementById('pricing-drawer-content');
+        const pricingDrawerTitle = document.getElementById('pricing-drawer-title');
+        const pricingDrawerSave = document.getElementById('pricing-drawer-save');
+        const pricingDrawerClose = document.getElementById('pricing-drawer-close');
+        let currentPricingProductId = null;
+
+        function openPricingDrawer() {
+            pricingDrawer.classList.add('open');
+            pricingDrawerBackdrop.classList.add('open');
+        }
+
+        function closePricingDrawer() {
+            pricingDrawer.classList.remove('open');
+            pricingDrawerBackdrop.classList.remove('open');
+            currentPricingProductId = null;
+            pricingDrawerContent.innerHTML = '';
+            pricingDrawerTitle.textContent = '';
+        }
+
+        pricingDrawerClose.addEventListener('click', closePricingDrawer);
+        pricingDrawerBackdrop.addEventListener('click', closePricingDrawer);
+
+        function buildPricingItems(product) {
+            const items = [];
+            const currencyStep = 0.01;
+            if (product.variants && product.variants.length > 0) {
+                product.variants.forEach(v => {
+                    const img = (v.media && v.media[0]) ? mediaUrl(v.media[0]) : ((product.media && product.media[0]) ? mediaUrl(product.media[0]) : '');
+                    const priceVal = typeof v.price !== 'undefined' && v.price !== null ? Number(v.price) : '';
+                    const specialVal = typeof v.special_price !== 'undefined' && v.special_price !== null ? Number(v.special_price) : '';
+                    items.push(`
+                        <div class="inv-item inv-price-item">
+                            <div class="inv-info">
+                                <div class="inv-media"><img src="${img}" alt="" /></div>
+                                <div class="inv-text">
+                                    <div class="inv-name">${_.escape(v.name || '')}</div>
+                                </div>
+                            </div>
+                            <div class="inv-actions">
+                                <div class="inv-input-wrap" style="flex-direction: column; align-items: center; text-align:center;">
+                                    <span style="font-size:11px;color:#6b7280;margin-bottom:3px; display:block;">Fiyat</span>
+                                    <input type="number" step="${currencyStep}" min="0" inputmode="decimal" class="inv-input variant-price-input" data-id="${v.id}" value="${priceVal !== '' ? priceVal : ''}" placeholder="0.00" />
+                                </div>
+                                <div class="inv-input-wrap" style="flex-direction: column; align-items: center; text-align:center; margin-left:8px;">
+                                    <span style="font-size:11px;color:#6b7280;margin-bottom:3px; display:block;">Özel fiyat</span>
+                                    <input type="number" step="${currencyStep}" min="0" inputmode="decimal" class="inv-input variant-special-price-input" data-id="${v.id}" value="${specialVal !== '' ? specialVal : ''}" placeholder="0.00" />
+                                </div>
+                            </div>
+                        </div>
+                    `);
+                });
+            } else {
+                const img = (product.media && product.media[0]) ? mediaUrl(product.media[0]) : '';
+                const priceVal = typeof product.price !== 'undefined' && product.price !== null ? Number(product.price) : '';
+                const specialVal = typeof product.special_price !== 'undefined' && product.special_price !== null ? Number(product.special_price) : '';
+                items.push(`
+                    <div class="inv-item inv-single inv-price-item">
+                        <div class="inv-info">
+                            <div class="inv-media"><img src="${img}" alt="" /></div>
+                            <div class="inv-text">
+                                <div class="inv-name">${_.escape(product.name || '')}</div>
+                            </div>
+                        </div>
+                        <div class="inv-actions">
+                            <div class="inv-input-wrap" style="flex-direction: column; align-items: center; text-align:center;">
+                                <span style="font-size:11px;color:#6b7280;margin-bottom:3px; display:block;">Fiyat</span>
+                                <input type="number" step="${currencyStep}" min="0" inputmode="decimal" class="inv-input product-price-input" value="${priceVal !== '' ? priceVal : ''}" placeholder="0.00" />
+                            </div>
+                            <div class="inv-input-wrap" style="flex-direction: column; align-items: center; text-align:center; margin-left:8px;">
+                                <span style="font-size:11px;color:#6b7280;margin-bottom:3px; display:block;">Özel fiyat</span>
+                                <input type="number" step="${currencyStep}" min="0" inputmode="decimal" class="inv-input product-special-price-input" value="${specialVal !== '' ? specialVal : ''}" placeholder="0.00" />
+                            </div>
+                        </div>
+                    </div>
+                `);
+            }
+            return items.join('');
+        }
+
+        $(document).on('click', '.price-cell', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const id = $(this).data('id');
+            if (!id) return;
+            currentPricingProductId = id;
+            axios.get(`${FleetCart.baseUrl}/admin/products/${id}/pricing`).then(({ data }) => {
+                const product = data.product;
+                pricingDrawerTitle.textContent = product.name;
+                pricingDrawerContent.innerHTML = buildPricingItems(product);
+                openPricingDrawer();
+            });
+        });
+
+        pricingDrawerSave.addEventListener('click', function () {
+            if (!currentPricingProductId) return;
+            const payload = {};
+            const variantPriceInputs = pricingDrawerContent.querySelectorAll('.variant-price-input');
+            const variantSpecialInputs = pricingDrawerContent.querySelectorAll('.variant-special-price-input');
+
+            if (variantPriceInputs.length > 0) {
+                payload.variants = {};
+                variantPriceInputs.forEach(inp => {
+                    const id = inp.getAttribute('data-id');
+                    const specialInp = pricingDrawerContent.querySelector('.variant-special-price-input[data-id="' + id + '"]');
+                    const vPriceRaw = (inp.value || '').trim();
+                    const vSpecialRaw = (specialInp?.value || '').trim();
+                    const vPayload = {};
+                    if (vPriceRaw !== '') {
+                        let pv = parseFloat(vPriceRaw.replace(',', '.'));
+                        if (!isFinite(pv) || pv < 0) pv = 0;
+                        vPayload.price = pv;
+                    }
+                    if (vSpecialRaw !== '') {
+                        let spv = parseFloat(vSpecialRaw.replace(',', '.'));
+                        if (!isFinite(spv) || spv < 0) spv = 0;
+                        vPayload.special_price = spv;
+                    } else {
+                        vPayload.special_price = '';
+                    }
+                    payload.variants[id] = vPayload;
+                });
+            } else {
+                const priceInp = pricingDrawerContent.querySelector('.product-price-input');
+                const specialInp = pricingDrawerContent.querySelector('.product-special-price-input');
+                if (priceInp && priceInp.value.trim() !== '') {
+                    let pv = parseFloat(priceInp.value.replace(',', '.'));
+                    if (!isFinite(pv) || pv < 0) pv = 0;
+                    payload.price = pv;
+                }
+                if (specialInp) {
+                    const raw = specialInp.value.trim();
+                    if (raw !== '') {
+                        let spv = parseFloat(raw.replace(',', '.'));
+                        if (!isFinite(spv) || spv < 0) spv = 0;
+                        payload.special_price = spv;
+                    } else {
+                        payload.special_price = '';
+                    }
+                }
+            }
+
+            axios.patch(`${FleetCart.baseUrl}/admin/products/${currentPricingProductId}/pricing`, payload).then(() => {
+                closePricingDrawer();
+                DataTable.reload('#products-table .table');
+            });
+        });
+
+        // Inline brand select
+        $(document).on('click', '.brand-cell', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const cell = $(this);
+            const productId = cell.data('id');
+            if (!productId) return;
+
+            // Avoid opening multiple selects
+            if (cell.data('editing')) {
+                return;
+            }
+            cell.data('editing', true);
+
+            const currentBrandId = String(cell.data('brand-id') ?? '');
+
+            const select = $('<select/>', {
+                class: 'form-control input-sm',
+            });
+
+            select.append($('<option/>', { value: '', text: 'Select' }));
+            Object.keys(allBrands).forEach((id) => {
+                select.append(
+                    $('<option/>', {
+                        value: id,
+                        text: allBrands[id],
+                    })
+                );
+            });
+
+            select.val(currentBrandId !== '' ? currentBrandId : '');
+
+            const originalText = cell.text();
+            cell.empty().append(select);
+            select.focus();
+
+            function cleanup(text, brandId) {
+                cell.data('editing', false);
+                cell.data('brand-id', brandId ?? '');
+                cell.text(text || '');
+            }
+
+            select.on('change', function () {
+                const newBrandId = $(this).val();
+                axios
+                    .patch(`${FleetCart.baseUrl}/admin/products/${productId}/brand`, {
+                        brand_id: newBrandId,
+                    })
+                    .then(() => {
+                        const label = newBrandId && allBrands[newBrandId] ? allBrands[newBrandId] : '';
+                        cleanup(label, newBrandId);
+                    })
+                    .catch(() => {
+                        cleanup(originalText, currentBrandId);
+                    });
+            });
+
+            select.on('blur', function () {
+                // On blur without change, restore original
+                if (cell.data('editing')) {
+                    const brandId = String(cell.data('brand-id') ?? currentBrandId ?? '');
+                    const label = brandId && allBrands[brandId] ? allBrands[brandId] : originalText;
+                    cleanup(label, brandId);
+                }
+            });
         });
 
         $(document).on('click', '.action-delete', function (e) {
@@ -108,7 +369,7 @@
                 });
         });
 
-        $(document).on('click', '.action-view, .action-delete, .action-edit, .product-status-switch', function (e) {
+        $(document).on('click', '.action-view, .action-delete, .action-edit, .product-status-switch, .price-cell', function (e) {
             e.stopPropagation();
         });
 
@@ -140,36 +401,50 @@
             const unitStep = allowDecimal ? Number(product.unit_step || 0.01) : 1;
             const inputMode = allowDecimal ? 'decimal' : 'numeric';
             const items = [];
+
             if (product.variants && product.variants.length > 0) {
                 product.variants.forEach(v => {
                     const img = (v.media && v.media[0]) ? mediaUrl(v.media[0]) : ((product.media && product.media[0]) ? mediaUrl(product.media[0]) : '');
+                    const sku = v.sku || v.sku_code || '';
                     items.push(`
                         <div class="inv-item">
-                            <div class="inv-media"><img src="${img}" alt="" /></div>
-                            <div class="inv-name">${_.escape(v.name || '')}</div>
-                            <div class="inv-input-wrap">
-                                <input type="number" step="${unitStep}" min="${unitMin}" inputmode="${inputMode}" class="inv-input variant-qty-input" data-id="${v.id}" data-decimal="${allowDecimal ? 1 : 0}" value="${Number(v.qty || 0)}" ${unitSuffix ? `data-suffix="${unitSuffix}"` : ''} />
+                            <div class="inv-info">
+                                <div class="inv-media"><img src="${img}" alt="" /></div>
+                                <div class="inv-text">
+                                    <div class="inv-name">${_.escape(v.name || '')}</div>
+                                    ${sku ? `<div class="inv-sku">${_.escape(sku)}</div>` : ''}
+                                </div>
+                            </div>
+                            <div class="inv-actions">
+                                <div class="inv-input-wrap">
+                                    <input type="number" step="${unitStep}" min="${unitMin}" inputmode="${inputMode}" class="inv-input variant-qty-input" data-id="${v.id}" data-decimal="${allowDecimal ? 1 : 0}" value="${Number(v.qty || 0)}" ${unitSuffix ? `data-suffix="${unitSuffix}"` : ''} />
+                                </div>
                             </div>
                         </div>
                     `);
                 });
             } else {
                 const img = (product.media && product.media[0]) ? mediaUrl(product.media[0]) : '';
+                const sku = product.sku || product.sku_code || '';
                 items.push(`
                     <div class="inv-item inv-single">
-                        <div class="inv-top">
+                        <div class="inv-info">
                             <div class="inv-media"><img src="${img}" alt="" /></div>
-                            <div class="inv-name">${_.escape(product.name || '')}</div>
+                            <div class="inv-text">
+                                <div class="inv-name">${_.escape(product.name || '')}</div>
+                                ${sku ? `<div class="inv-sku">${_.escape(sku)}</div>` : ''}
+                            </div>
                         </div>
-                        <div class="inv-bottom">
+                        <div class="inv-actions">
                             <div class="inv-input-wrap">
                                 <input type="number" step="${unitStep}" min="${unitMin}" inputmode="${inputMode}" class="inv-input product-qty-input" data-decimal="${allowDecimal ? 1 : 0}" value="${Number(product.qty || 0)}" ${unitSuffix ? `data-suffix="${unitSuffix}"` : ''} />
                             </div>
-                            <button type="button" class="btn btn-primary inv-inline-save">{{ trans('admin::admin.buttons.save') }}</button>
+                            <button type="button" class="btn btn-primary btn-xs inv-inline-save">{{ trans('admin::admin.buttons.save') }}</button>
                         </div>
                     </div>
                 `);
             }
+
             return items.join('');
         }
 
@@ -313,28 +588,34 @@
             justify-content: center;
         }
 
-        #inventory-drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 1040; }
-        #inventory-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
-        #inventory-drawer { position: fixed; top: 0; right: -480px; width: 480px; height: 100%; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,0.15); z-index: 1050; transition: right .25s; display: flex; flex-direction: column; }
-        #inventory-drawer.open { right: 0; }
-        #inventory-drawer .drawer-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #eee; }
-        #inventory-drawer .drawer-body { padding: 12px 16px; overflow-y: auto; flex: 1; }
-        #inventory-drawer .drawer-footer { padding: 12px 16px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 8px; }
-        .inv-item { display: flex; align-items: center; gap: 12px; border: 1px solid #f0f0f0; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
-        .inv-media img { width: 44px; height: 44px; object-fit: cover; border-radius: 8px; background: #fafafa; display: block; }
-        .inv-name { font-weight: 600; color: #222; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        #inventory-drawer-backdrop,
+        #pricing-drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 1040; }
+        #inventory-drawer-backdrop.open,
+        #pricing-drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+        #inventory-drawer,
+        #pricing-drawer { position: fixed; top: 0; right: -480px; width: 480px; height: 100%; background: #fff; box-shadow: -2px 0 8px rgba(0,0,0,0.15); z-index: 1050; transition: right .25s; display: flex; flex-direction: column; }
+        #inventory-drawer.open,
+        #pricing-drawer.open { right: 0; }
+        #inventory-drawer .drawer-header,
+        #pricing-drawer .drawer-header { padding: 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #eee; }
+        #inventory-drawer .drawer-body,
+        #pricing-drawer .drawer-body { padding: 12px 16px; overflow-y: auto; flex: 1; }
+        #inventory-drawer .drawer-footer,
+        #pricing-drawer .drawer-footer { padding: 12px 16px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 8px; }
+        .inv-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; margin-bottom: 6px; border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; box-shadow: 0 1px 2px rgba(15,23,42,0.02); }
+        .inv-item:hover { border-color: #d1d5db; box-shadow: 0 2px 4px rgba(15,23,42,0.05); }
+        .inv-info { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+        .inv-media img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; background: #f9fafb; display: block; border: 1px solid #e5e7eb; }
+        .inv-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .inv-name { font-weight: 600; color: #111827; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+        .inv-sku { font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .inv-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .inv-actions .inv-inline-save { padding: 4px 10px; font-size: 11px; line-height: 1; border-radius: 4px; height: 30px; display: inline-flex; align-items: center; }
         .inv-input-wrap { display: flex; align-items: center; }
-        .inv-input { width: 160px; height: 36px; appearance: textfield; -moz-appearance: textfield; text-align: center; border-radius: 10px; border: 1px solid #e5e7eb; background: #f9fafb; color: #111; }
+        .inv-input { width: 70px; height: 30px; appearance: textfield; -moz-appearance: textfield; text-align: center; border-radius: 6px; border: 1px solid #e5e7eb; background: #f9fafb; color: #111; padding: 0 6px; font-size: 12px; }
         .inv-input::-webkit-outer-spin-button,
         .inv-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .inv-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); background: #fff; }
-        .inv-single { flex-direction: column; align-items: stretch; }
-        .inv-single .inv-top { display: flex; align-items: center; gap: 12px; }
-        .inv-single .inv-media img { width: 56px; height: 56px; border-radius: 10px; }
-        .inv-single .inv-name { font-size: 14px; }
-        .inv-single .inv-bottom { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-        .inv-single .inv-input-wrap { flex: 0 0 auto; }
-        .inv-single .inv-input { width: 180px; max-width: 240px; }
         @media (max-width: 480px) {
             .inv-item { gap: 8px; }
             .inv-input { width: 130px; height: 34px; }
@@ -354,6 +635,18 @@
         <div class="drawer-footer">
             <button class="btn btn-default" id="inventory-drawer-close">{{ trans('admin::admin.buttons.cancel') }}</button>
             <button class="btn btn-primary" id="inventory-drawer-save">{{ trans('admin::admin.buttons.save') }}</button>
+        </div>
+    </div>
+    <div id="pricing-drawer-backdrop"></div>
+    <div id="pricing-drawer">
+        <div class="drawer-header">
+            <div id="pricing-drawer-title"></div>
+            <button id="pricing-drawer-close" class="btn btn-default">×</button>
+        </div>
+        <div class="drawer-body" id="pricing-drawer-content"></div>
+        <div class="drawer-footer">
+            <button class="btn btn-default" id="pricing-drawer-close">{{ trans('admin::admin.buttons.cancel') }}</button>
+            <button class="btn btn-primary" id="pricing-drawer-save">{{ trans('admin::admin.buttons.save') }}</button>
         </div>
     </div>
     @endpush

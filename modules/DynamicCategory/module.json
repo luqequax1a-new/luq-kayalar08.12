@@ -1,0 +1,9 @@
+{
+    "name": "DynamicCategory",
+    "alias": "dynamic_category",
+    "description": "The FleetCart Dynamic Category Module.",
+    "priority": 120,
+    "providers": [
+        "Modules\\DynamicCategory\\Providers\\DynamicCategoryServiceProvider"
+    ]
+}

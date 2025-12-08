@@ -63,8 +63,10 @@ class PlaceholderRenderer
         if ($v) {
             $variantAttrs = $this->extractVariantAttributes($v);
         }
+        $shopName = setting('store_name', config('app.name'));
+
         return [
-            '%shop.name%' => config('app.name'),
+            '%shop.name%' => $shopName,
             '%separator%' => $this->config['templates']['separator'] ?? ' - ',
             '%product.name%' => $p->name ?? '',
             '%product.slug%' => $p->slug ?? '',
@@ -89,8 +91,11 @@ class PlaceholderRenderer
         if ($desc === '') {
             $desc = 'Affordable '.$c->name.' products with fast shipping';
         }
+
+        $shopName = setting('store_name', config('app.name'));
+
         return [
-            '%shop.name%' => config('app.name'),
+            '%shop.name%' => $shopName,
             '%separator%' => $this->config['templates']['separator'] ?? ' - ',
             '%category.name%' => $c->name ?? '',
             '%category.slug%' => $c->slug ?? '',

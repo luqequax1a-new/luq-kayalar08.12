@@ -17,7 +17,6 @@
                     class="product-media-grid"
                     animation="200"
                     item-key="index"
-                    handle=".handle"
                     :list="form.media"
                 >
                     <template #item="{ element: media, index }">

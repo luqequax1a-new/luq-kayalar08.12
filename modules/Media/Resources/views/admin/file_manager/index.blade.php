@@ -48,10 +48,7 @@
             DataTable.set('.file-manager .table', {
                 routePrefix: 'media',
                 routes: {
-                    table: {
-                        name: 'table',
-                        params: { type: '{{ $type }}' }
-                    },
+                    table: 'table',
                     destroy: 'destroy',
                 }
             });

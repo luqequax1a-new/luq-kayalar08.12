@@ -54,6 +54,7 @@ trait ProductSearch
                 'variants' => function ($q) {
                     $q->orderBy('position');
                 },
+                'variations',
                 'tags',
                 'tags.tagBadges' => function ($q) {
                     $q->active();
@@ -70,7 +71,7 @@ trait ProductSearch
                         'priority' => $badge->priority,
                     ];
                 })->values();
-
+                $variantLabel = optional($product->variations->first())->name;
                 if ($product->list_variants_separately) {
                     $variants = $product->variants()->orderBy('position')->get();
                     $actives = $variants->filter(function ($v) {
@@ -78,8 +79,9 @@ trait ProductSearch
                     });
 
                     if ($actives->isNotEmpty()) {
-                        return $actives->map(function ($variant) use ($product, $tagBadges) {
+                        return $actives->map(function ($variant) use ($product, $tagBadges, $variantLabel) {
                             $p = $product->clean();
+                            $p['variant_attribute_label'] = $variantLabel;
                             $p['name'] = $product->name;
                             $p['variant'] = $variant->toArray();
                             $p['url'] = $variant->url() ?? $product->url();
@@ -101,6 +103,7 @@ trait ProductSearch
                 }
 
                 $base = $product->clean();
+                $base['variant_attribute_label'] = $variantLabel;
                 $base['reviews_count'] = $product->reviews_count ?? ($product->relationLoaded('reviews') ? $product->reviews->count() : 0);
                 $base['rating_percent'] = $product->rating_percent;
                 $base['base_image_thumb'] = [
@@ -126,9 +129,30 @@ trait ProductSearch
 
             event(new ShowingProductList($paginator));
 
+            $categoryData = [
+                'name' => null,
+                'slug' => null,
+                'description_html' => '',
+                'faq_items' => [],
+            ];
+
+            if (request()->filled('category')) {
+                $category = Category::where('slug', request('category'))->first();
+
+                if ($category && $category->exists) {
+                    $faqItems = is_array($category->faq_items) ? $category->faq_items : [];
+
+                    $categoryData['name'] = $category->name;
+                    $categoryData['slug'] = $category->slug;
+                    $categoryData['description_html'] = $category->description ?? '';
+                    $categoryData['faq_items'] = $faqItems;
+                }
+            }
+
             return response()->json([
                 'products' => $paginator,
                 'attributes' => $this->getAttributes($productIds),
+                'category' => $categoryData,
             ]);
         }
     }
@@ -163,5 +187,38 @@ trait ProductSearch
             ->whereIn('product_id', $productIds)
             ->distinct()
             ->pluck('category_id');
+    }
+
+
+    private function buildFaqHtml(array $faqList): string
+    {
+        if (empty($faqList)) {
+            return '';
+        }
+
+        $html = '';
+
+        foreach ($faqList as $item) {
+            $q = isset($item['q']) ? e($item['q']) : '';
+            $a = isset($item['a']) ? (string) $item['a'] : '';
+
+            if ($q === '' && trim($a) === '') {
+                continue;
+            }
+
+            $html .= '<div class="faq-item">';
+
+            if ($q !== '') {
+                $html .= '<h3 class="faq-question">' . $q . '</h3>';
+            }
+
+            if (trim($a) !== '') {
+                $html .= '<div class="faq-answer">' . $a . '</div>';
+            }
+
+            $html .= '</div>';
+        }
+
+        return $html;
     }
 }

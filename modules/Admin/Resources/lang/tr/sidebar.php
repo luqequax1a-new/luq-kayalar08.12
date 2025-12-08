@@ -11,4 +11,5 @@ return [
     'automations' => 'Otomasyonlar',
     'review_campaigns' => 'Yorum Mail Otomasyonu',
     'whatsapp_module' => 'Whatsapp Modülü',
+    'popup' => 'Pop-up',
 ];

@@ -13,7 +13,8 @@
             @endif
             
             <a
-                href="{{ route('categories.products.index', ['category' => $category->slug]) }}"
+                href="{{ route('products.index', ['category' => $category->slug]) }}"
+                title="{{ $category->name }}"
                 @click.prevent='
                     changeCategory({
                         name: "{{ addslashes($category->name) }}",

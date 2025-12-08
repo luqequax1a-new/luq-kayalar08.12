@@ -59,6 +59,11 @@ class SettingController
                 ->with('success', trans('setting::messages.settings_updated'));
         }
 
+        if ($request->get('context') === 'customizations') {
+            return redirect()->route('admin.settings.customizations')
+                ->with('success', trans('setting::messages.settings_updated'));
+        }
+
         return redirect(non_localized_url())
             ->with('success', trans('setting::messages.settings_updated'));
     }

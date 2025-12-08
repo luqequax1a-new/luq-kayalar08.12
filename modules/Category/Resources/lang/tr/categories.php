@@ -19,5 +19,10 @@ return [
         'enable_the_category' => 'Kategoriyi aktifleştir',
         'logo' => 'Logo',
         'banner' => 'Banner',
+        'description' => 'Kategori Açıklaması',
+        'faq' => 'Sıkça Sorulan Sorular (FAQ)',
+        'add_faq_item' => 'SSS Ekle',
+        'faq_question_placeholder' => 'Soru başlığını yazın',
+        'faq_answer_placeholder' => 'Cevabı yazın',
     ],
 ];

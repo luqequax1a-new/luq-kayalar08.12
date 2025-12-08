@@ -2,27 +2,27 @@
     <div class="search-result-top">
         <div class="content-left">
             <template x-if="queryParams.query">
-                <h4>
+                <h1 style="color: #000;">
                     {{ trans('storefront::products.search_results_for') }}
                     
                     <span x-text="queryParams.query"></span>
-                </h4>
+                </h1>
             </template>
 
             <template x-if="!queryParams.query && queryParams.brand">
-                <h4 x-text="initialBrandName"></h4>
+                <h1 style="color: #000;" x-text="initialBrandName"></h1>
             </template>
 
             <template x-if="!queryParams.query && !queryParams.brand && queryParams.category">
-                <h4 x-text="categoryName"></h4>
+                <h1 style="color: #000;" x-text="categoryName"></h1>
             </template>
             
             <template x-if="!queryParams.query && !queryParams.brand && !queryParams.category && queryParams.tag">
-                <h4 x-text="initialTagName"></h4>
+                <h1 style="color: #000;" x-text="initialTagName"></h1>
             </template>
             
             <template x-if="!queryParams.query && !queryParams.brand && !queryParams.category && !queryParams.tag">
-                <h4>{{ trans('storefront::products.shop') }}</h4>
+                <h1 style="color: #000;">{{ trans('storefront::products.shop') }}</h1>
             </template>
         </div>
 
@@ -164,4 +164,44 @@
             </template>
         </div>
     </template>
+
+    <section
+        class="category-description mt-5 mb-4"
+        x-show="categoryDescriptionHtml"
+        x-html="categoryDescriptionHtml"
+    ></section>
+
+    <section
+        class="fc-faq-section mt-5"
+        x-data="{ open: null }"
+        x-show="categoryFaqItems.length"
+    >
+        <h2
+            class="faq-title mb-3"
+            x-text="(categoryName || '{{ addslashes($category->name ?? '') }}') + ' Hakkında Sıkça Sorulan Sorular'"
+        ></h2>
+
+        <template x-for="(item, index) in categoryFaqItems" :key="index">
+            <div class="faq-item">
+                <button
+                    type="button"
+                    class="faq-question"
+                    @click="open = open === index ? null : index"
+                >
+                    <span class="faq-question-text" x-text="item.question"></span>
+                    <span class="icon" :class="{ 'rotate': open === index }">
+                        ❯
+                    </span>
+                </button>
+
+                <div
+                    class="faq-answer"
+                    x-show="open === index"
+                    x-transition
+                >
+                    <p class="mb-0" x-text="item.answer"></p>
+                </div>
+            </div>
+        </template>
+    </section>
 </div>

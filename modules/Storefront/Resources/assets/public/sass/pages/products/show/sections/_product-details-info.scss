@@ -137,12 +137,12 @@
             display: inline-block;
             margin-right: 0;
             white-space: nowrap;
-            overflow: hidden;
+            line-height: 1.15;
 
             + .previous-price {
                 font-size: 16px;
                 font-weight: var(--font-normal);
-                line-height: 20px;
+                line-height: 1.25;
                 margin-left: 8px;
                 color: var(--color-gray);
                 text-decoration: line-through;
@@ -320,11 +320,14 @@
 
                     img {
                         position: absolute;
-                        left: 50%;
-                        top: 50%;
-                        max-height: 100%;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        height: 100%;
                         max-width: 100%;
-                        transform: translate(-50%, -50%);
+                        max-height: 100%;
+                        object-fit: cover;
+                        object-position: center;
                     }
                 }
             }

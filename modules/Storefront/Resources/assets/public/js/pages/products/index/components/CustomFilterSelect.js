@@ -1,3 +1,5 @@
+import Alpine from "alpinejs";
+
 Alpine.data("CustomFilterSelect", () => ({
     open: false,
     selected: FleetCart.data["initialSort"] || "latest",

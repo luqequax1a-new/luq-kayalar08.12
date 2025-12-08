@@ -22,6 +22,7 @@
     "Page": true,
     "Payment": true,
     "Product": true,
+    "Popup": true,
     "Report": true,
     "Review": true,
     "Setting": true,
@@ -40,6 +41,9 @@
         "Unit": true,
         "Address": true,
     "Ticket": true,
-    "SeoBulk": true
-    ,"Geliver": true
+    "SeoBulk": true,
+    "Geliver": true,
+    "BulkProductEdit": false,
+    "DynamicCategory": true,
+    "ProductFeeds": true
 }

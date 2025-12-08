@@ -25,6 +25,7 @@ return [
         40 => '40',
         50 => '50',
     ],
+    'category_faq_title' => ':category Hakkında Sıkça Sorulan Sorular',
     'no_products_found' => 'Üzgünüz! Ürün bulunamadı.',
     'showing_results' => ':total sonuçtan :from–:to arası gösteriliyor',
 ];

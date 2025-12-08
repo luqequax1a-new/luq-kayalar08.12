@@ -14,7 +14,15 @@
     </div>
 
     <div class="box box-primary">
-        <div class="box-body index-table" id="{{ isset($resource) ? "{$resource}-table" : '' }}">
+        <div class="box-body index-table" id="{{ isset($resource) ? "{$resource}-table" : '' }}" @isset($filters_form) data-filters-form="{{ $filters_form }}" @endisset>
+            @isset($filters)
+                <div class="row" style="margin-bottom: 10px;">
+                    <div class="col-sm-12">
+                        {{ $filters }}
+                    </div>
+                </div>
+            @endisset
+
             @if (isset($thead))
                 @include('admin::components.table')
             @else

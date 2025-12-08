@@ -10,6 +10,7 @@ export default class {
     constructor(selector, options, callback) {
         this.selector = selector;
         this.element = $(selector);
+        this.filtersFormSelector = this.element.closest('.index-table').data('filters-form') || null;
 
         if (FleetCart.dataTable.selected[selector] === undefined) {
             FleetCart.dataTable.selected[selector] = [];
@@ -29,7 +30,10 @@ export default class {
                 {
                     serverSide: true,
                     processing: true,
-                    ajax: this.route("table", { table: true }),
+                    ajax: (data, callback) => {
+                        const url = this.route("table", data || {});
+                        $.getJSON(url, callback);
+                    },
                     stateSave: true,
                     sort: true,
                     info: true,
@@ -267,15 +271,23 @@ export default class {
             FleetCart.dataTable.routePrefix[this.selector]
         }`;
 
+        if (name === "table" && this.filtersFormSelector) {
+            const form = document.querySelector(this.filtersFormSelector);
+            if (form) {
+                const formData = new FormData(form);
+                formData.forEach((value, key) => {
+                    if (value !== null && value !== undefined && value !== "") {
+                        params[key] = value;
+                    }
+                });
+            }
+        }
+
         if (typeof router === "string") {
             router = { name: router, params };
         }
 
         router.params = _.merge(params, router.params);
-
-        if (name === "table") {
-            return `${url}/index/${name}?${qs.stringify(params)}`;
-        }
 
         if (name === "edit") {
             return `${url}/${params.id}/${name}`;

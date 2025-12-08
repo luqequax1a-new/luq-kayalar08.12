@@ -41,6 +41,12 @@ Route::patch('products/{id}/status', [
     'middleware' => 'can:admin.products.edit',
 ]);
 
+Route::patch('products/{id}/brand', [
+    'as' => 'admin.products.brand',
+    'uses' => 'ProductController@updateBrand',
+    'middleware' => 'can:admin.products.edit',
+]);
+
 Route::post('products/{id}/duplicate', [
     'as' => 'admin.products.duplicate',
     'uses' => 'ProductController@duplicate',
@@ -59,6 +65,24 @@ Route::get('products/index/table', [
     'middleware' => 'can:admin.products.index',
 ]);
 
+Route::get('products/bulk-editor', [
+    'as' => 'admin.products.bulk_editor',
+    'uses' => 'ProductController@bulkEditor',
+    'middleware' => 'can:admin.products.edit',
+]);
+
+Route::get('products/bulk-preview', [
+    'as' => 'admin.products.bulk_preview',
+    'uses' => 'ProductController@bulkPreview',
+    'middleware' => 'can:admin.products.edit',
+]);
+
+Route::post('products/bulk-update', [
+    'as' => 'admin.products.bulk_update',
+    'uses' => 'ProductController@bulkUpdate',
+    'middleware' => 'can:admin.products.edit',
+]);
+
 Route::get('google-taxonomy', [
     'as' => 'admin.google_taxonomy.index',
     'uses' => 'TaxonomyController@index',
@@ -73,6 +97,18 @@ Route::get('products/{id}/inventory', [
 Route::patch('products/{id}/inventory', [
     'as' => 'admin.products.inventory.update',
     'uses' => 'ProductController@updateInventory',
+    'middleware' => 'can:admin.products.edit',
+]);
+
+Route::get('products/{id}/pricing', [
+    'as' => 'admin.products.pricing.show',
+    'uses' => 'ProductController@pricing',
+    'middleware' => 'can:admin.products.edit',
+]);
+
+Route::patch('products/{id}/pricing', [
+    'as' => 'admin.products.pricing.update',
+    'uses' => 'ProductController@updatePricing',
     'middleware' => 'can:admin.products.edit',
 ]);
 

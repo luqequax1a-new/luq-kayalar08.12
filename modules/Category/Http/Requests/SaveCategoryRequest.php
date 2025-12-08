@@ -27,6 +27,9 @@ class SaveCategoryRequest extends Request
             'name' => 'required',
             'slug' => $this->getSlugRules(),
             'is_active' => 'required|boolean',
+            'faq_items' => 'nullable|array',
+            'faq_items.*.question' => 'required|string',
+            'faq_items.*.answer' => 'required|string',
         ];
     }
 

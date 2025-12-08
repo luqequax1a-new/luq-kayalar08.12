@@ -9,27 +9,40 @@
 @endsection
 
 @push('meta')
-    @php(
-        $listBaseDescription = setting('store_tagline') ?: setting('store_name')
-    )
+    @php
+        $listBaseDescription = setting('store_tagline') ?: setting('store_name');
+
+        $hasQuery = request()->filled('query');
+        $hasCategory = request()->filled('category');
+        $hasBrand = request()->filled('brand');
+        $hasTag = request()->filled('tag');
+        $hasAttribute = ! empty(request('attribute', []));
+        $hasPrice = request()->filled('price') || request()->filled('minPrice') || request()->filled('maxPrice');
+        $hasSort = request()->filled('sort');
+        $hasViewMode = request()->filled('viewMode');
+        $hasPerPage = (int) request('perPage', 20) !== 20;
+        $isPaginated = (int) request('page', 1) > 1;
+
+        $hasFacets = $hasAttribute || $hasPrice || $hasSort || $hasViewMode || $hasPerPage || $isPaginated;
+    @endphp
 
     @if (isset($categoryName))
-        @php(
-            $listTitle = $categoryMetaTitle ?: $categoryName
-        )
+        @php
+            $listTitle = $categoryMetaTitle ?: $categoryName;
 
-        @php(
-            $listDescription = $categoryMetaDescription ?: $listBaseDescription
-        )
+            $listDescription = $categoryMetaDescription ?: $listBaseDescription;
 
-        @php(
             $listLogo = ($categoryBanner ?? $brandBanner ?? null)
                 ?: setting('store_logo')
-                ?: asset('build/assets/image-placeholder.png')
-        )
+                ?: asset('build/assets/image-placeholder.png');
+        @endphp
 
         <meta name="title" content="{{ $listTitle }}">
         <meta name="description" content="{{ $listDescription }}">
+
+        @if ($hasFacets)
+            <meta name="robots" content="noindex,follow">
+        @endif
 
         <meta name="twitter:card" content="summary_large_image">
         <meta name="twitter:title" content="{{ $listTitle }}">
@@ -45,22 +58,60 @@
         @endforeach
 
         <meta name="twitter:image" content="{{ $listLogo }}">
-    @elseif (request()->has('query'))
-        @php(
-            $searchQuery = request('query')
-        )
 
-        @php(
-            $searchTitle = trans('storefront::products.search_results_for') . ': "' . $searchQuery . '"'
-        )
+        @php
+            $faqEntities = [];
 
-        @php(
-            $searchDescription = ($listBaseDescription ?: setting('store_name')) . ' ' . trans('storefront::products.search_results_for') . ' "' . $searchQuery . '"'
-        )
+            if (isset($category) && is_array($category->faq_items)) {
+                foreach ($category->faq_items as $faq) {
+                    $q = isset($faq['question']) ? trim(strip_tags($faq['question'])) : '';
+                    $a = isset($faq['answer']) ? trim(strip_tags($faq['answer'])) : '';
 
-        @php(
-            $searchLogo = setting('store_logo') ?: asset('build/assets/image-placeholder.png')
-        )
+                    if ($q === '' || $a === '') {
+                        continue;
+                    }
+
+                    $faqEntities[] = [
+                        '@type' => 'Question',
+                        'name' => $q,
+                        'acceptedAnswer' => [
+                            '@type' => 'Answer',
+                            'text' => $a,
+                        ],
+                    ];
+                }
+
+                // İstersen burada ilk 5 kayıtla sınırlayabilirsin
+                // $faqEntities = array_slice($faqEntities, 0, 5);
+            }
+
+            if (! empty($faqEntities)) {
+                echo '<script type="application/ld+json">' . PHP_EOL;
+                echo json_encode([
+                    '@context'   => 'https://schema.org',
+                    '@type'      => 'FAQPage',
+                    'mainEntity' => $faqEntities,
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+                echo PHP_EOL . '</script>' . PHP_EOL;
+            }
+        @endphp
+    @endif
+
+    @if (request()->has('query'))
+        @php
+            $searchQuery = request('query');
+
+            $searchTitle = trans('storefront::products.search_results_for') . ': "' . $searchQuery . '"';
+
+            $searchDescription = ($listBaseDescription ?: setting('store_name'))
+                . ' '
+                . trans('storefront::products.search_results_for')
+                . ' "'
+                . $searchQuery
+                . '"';
+
+            $searchLogo = setting('store_logo') ?: asset('build/assets/image-placeholder.png');
+        @endphp
 
         <meta name="description" content="{{ $searchDescription }}">
         <meta name="robots" content="noindex,follow">
@@ -73,7 +124,7 @@
         <meta property="og:type" content="website">
         <meta property="og:title" content="{{ $searchTitle }}">
         <meta property="og:description" content="{{ $searchDescription }}">
-        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:url" content="{{ $hasCategory ? route('categories.products.index', ['category' => request('category')]) : url()->current() }}">
         <meta property="og:image" content="{{ $searchLogo }}">
         <meta property="og:locale" content="{{ locale() }}">
         @foreach (supported_locale_keys() as $code)
@@ -83,10 +134,31 @@
 @endpush
 
 @section('canonical')
-    @if (request()->has('category'))
-        @php($categoryUrl = route('categories.products.index', ['category' => request('category')]))
-        <link rel="canonical" href="{{ \Illuminate\Support\Str::before($categoryUrl, '?') }}">
-    @endif
+    @php
+        $baseUrl = url()->current();
+
+        if ($hasCategory) {
+            $baseUrl = route('categories.products.index', ['category' => request('category')]);
+        } elseif ($hasBrand) {
+            try {
+                $baseUrl = route('brands.products.index', ['brand' => request('brand')]);
+            } catch (\InvalidArgumentException $e) {
+                $baseUrl = url()->current();
+            }
+        } elseif ($hasTag) {
+            try {
+                $baseUrl = route('tags.products.index', ['tag' => request('tag')]);
+            } catch (\InvalidArgumentException $e) {
+                $baseUrl = url()->current();
+            }
+        } elseif ($hasQuery) {
+            $baseUrl = request()->url();
+        }
+
+        $canonicalUrl = \Illuminate\Support\Str::before($baseUrl, '?');
+    @endphp
+
+    <link rel="canonical" href="{{ $canonicalUrl }}">
 @endsection
 
 @section('content')
@@ -151,6 +223,8 @@
 
 @push('globals')
     <script>
+        window.FleetCart = window.FleetCart || { data: {}, langs: {} };
+
         FleetCart.data['initialQuery'] = '{{ addslashes(request('query')) }}';
         FleetCart.data['initialBrandName'] = '{{ addslashes($brandName ?? '') }}';
         FleetCart.data['initialBrandBanner'] = '{{ addslashes($brandBanner ?? '') }}';
@@ -158,6 +232,8 @@
         FleetCart.data['initialCategoryName'] = '{{ addslashes($categoryName ?? '') }}';
         FleetCart.data['initialCategoryBanner'] = '{{ addslashes($categoryBanner ?? '') }}';
         FleetCart.data['initialCategorySlug'] = '{{ addslashes(request('category')) }}';
+        FleetCart.data['initialCategoryDescriptionHtml'] = @json(isset($category) ? ($category->description ?? '') : '');
+        FleetCart.data['initialCategoryFaqItems'] = @json(isset($category) && is_array($category->faq_items) ? $category->faq_items : []);
         FleetCart.data['initialTagName'] = '{{ addslashes($tagName ?? '') }}';
         FleetCart.data['initialTagSlug'] = '{{ addslashes(request('tag')) }}';
         FleetCart.data['initialAttribute'] = @json((object) request('attribute', []));
@@ -169,7 +245,7 @@
         FleetCart.data['initialViewMode'] = '{{ addslashes(request('viewMode', 'grid')) }}';
         FleetCart.langs['storefront::products.showing_results'] = '{{ trans("storefront::products.showing_results") }}';
     </script>
-    
+
     @vite([
         'modules/Storefront/Resources/assets/public/sass/pages/products/index/main.scss',
         'modules/Storefront/Resources/assets/public/js/pages/products/index/main.js',

@@ -7,7 +7,36 @@
                         href="{{ $topBrand['url'] }}"
                         class="swiper-slide top-brand-item d-inline-flex align-items-center justify-content-center overflow-hidden"
                     >
-                        <img src="{{ $topBrand['logo']['path'] }}" alt="Brand logo" loading="lazy" />
+                        @php(
+                            $logo = $topBrand['logo']
+                        )
+                        @php(
+                            $logoAvif = $logo['thumb_avif_url']
+                                ?? $logo['grid_avif_url']
+                                ?? null
+                        )
+                        @php(
+                            $logoWebp = $logo['thumb_webp_url']
+                                ?? $logo['grid_webp_url']
+                                ?? null
+                        )
+                        @php(
+                            $logoJpeg = $logo['thumb_jpeg_url']
+                                ?? $logo['grid_jpeg_url']
+                                ?? $logo['path']
+                        )
+
+                        <picture>
+                            @if ($logoAvif)
+                                <source srcset="{{ $logoAvif }}" type="image/avif">
+                            @endif
+
+                            @if ($logoWebp)
+                                <source srcset="{{ $logoWebp }}" type="image/webp">
+                            @endif
+
+                            <img src="{{ $logoJpeg }}" alt="Brand logo" loading="lazy" />
+                        </picture>
                     </a>
                 @endforeach
             </div>

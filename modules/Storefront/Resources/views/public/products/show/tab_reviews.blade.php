@@ -58,7 +58,7 @@
                                 <div class="review-images grid">
                                     <template x-for="f in (review.files || [])" :key="f.id">
                                         <div class="thumb">
-                                            <a :href="f.url || f.path" class="review-image-lightbox" :data-gallery="'review-'+index">
+                                            <a :href="f.url || f.path" class="review-image-lightbox glightbox" :data-gallery="'review-'+index">
                                                 <picture>
                                                     <template x-if="Boolean(f.detail_avif_url)">
                                                         <source :srcset="f.detail_avif_url" type="image/avif">

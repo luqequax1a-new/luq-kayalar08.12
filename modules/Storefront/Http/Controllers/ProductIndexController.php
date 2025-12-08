@@ -34,6 +34,7 @@ class ProductIndexController
         return Product::forCard()
             ->with([
                 'variants',
+                'variations',
                 'tags',
                 'tags.tagBadges' => function ($query) {
                     $query->active();
@@ -52,6 +53,8 @@ class ProductIndexController
                         'priority' => $badge->priority,
                     ];
                 })->values();
+                // Grid badge label: use first variation name (e.g. Renk, Beden)
+                $variantLabel = optional($product->variations->first())->name;
                 if ($product->list_variants_separately) {
                     $variants = $product->variants()->orderBy('position')->get();
                     $actives = $variants->filter(function ($v) {
@@ -59,8 +62,9 @@ class ProductIndexController
                     });
 
                     if ($actives->isNotEmpty()) {
-                        return $actives->map(function ($variant) use ($product) {
+                        return $actives->map(function ($variant) use ($product, $tagBadges, $variantLabel) {
                             $p = $product->clean();
+                            $p['variant_attribute_label'] = $variantLabel;
                             // Keep base product name; frontend combines with variant name once
                             $p['name'] = $product->name;
                             $p['variant'] = $variant->toArray();
@@ -80,6 +84,7 @@ class ProductIndexController
                     }
                 }
                 $base = $product->clean();
+                $base['variant_attribute_label'] = $variantLabel;
                 $base['base_image_thumb'] = [
                     'path' => media_variant_url($product->base_image, 400)
                 ];
@@ -97,6 +102,7 @@ class ProductIndexController
             ->forCard()
             ->with([
                 'variants',
+                'variations',
                 'tags',
                 'tags.tagBadges' => function ($query) {
                     $query->active();
@@ -114,6 +120,7 @@ class ProductIndexController
                         'priority' => $badge->priority,
                     ];
                 })->values();
+                $variantLabel = optional($product->variations->first())->name;
                 if ($product->list_variants_separately) {
                     $variants = $product->variants()->orderBy('position')->get();
                     $actives = $variants->filter(function ($v) {
@@ -121,9 +128,9 @@ class ProductIndexController
                     });
 
                     if ($actives->isNotEmpty()) {
-                        return $actives->map(function ($variant) use ($product) {
+                        return $actives->map(function ($variant) use ($product, $tagBadges, $variantLabel) {
                             $p = $product->clean();
-                            // Keep base product name; frontend combines with variant name once
+                            $p['variant_attribute_label'] = $variantLabel;
                             $p['name'] = $product->name;
                             $p['variant'] = $variant->toArray();
                             $p['url'] = $variant->url() ?? $product->url();
@@ -136,6 +143,7 @@ class ProductIndexController
                     }
                 }
                 $base = $product->clean();
+                $base['variant_attribute_label'] = $variantLabel;
                 $base['tag_badges'] = $tagBadges;
 
                 return collect([$base]);

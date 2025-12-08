@@ -6,15 +6,7 @@
     <section class="contact-wrap">
         <div class="container">
             <div class="map-canvas">
-                <iframe
-                    width="600"
-                    height="500"
-                    src="https://maps.google.com/maps?q={{ setting('storefront_address') }}&t=&z=13&ie=UTF8&iwloc=&output=embed"
-                    frameborder="0"
-                    scrolling="no"
-                    marginheight="0"
-                    marginwidth="0">
-                </iframe>
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3125.9160464905476!2d27.134621000000003!3d38.420305!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x14bbd9dd0959086d%3A0x3ddc8bfc2ea46187!2sKayalar%20Manifatura!5e0!3m2!1str!2str!4v1765220354381!5m2!1str!2str" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
             </div>
 
             <div class="contact-form-wrap">

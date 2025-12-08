@@ -9,6 +9,7 @@ use Modules\Storefront\Feature;
 use Illuminate\Support\Collection;
 use Modules\Product\Entities\Product;
 use Spatie\SchemaOrg\ItemAvailability;
+use Modules\Shipping\Services\SmartShippingCalculator;
 
 class ProductShowPageComposer
 {
@@ -44,13 +45,27 @@ class ProductShowPageComposer
             $imagePath = asset('build/assets/image-placeholder.png');
         }
 
+        $rawDescription = $product->short_description ?: $product->description;
+
+        if ($rawDescription) {
+            try {
+                $rawDescription = trim(strip_tags((string) $rawDescription));
+                // Çok uzun açıklamaları kısalt, Google için temiz ve öz bir metin bırak
+                if (mb_strlen($rawDescription) > 400) {
+                    $rawDescription = mb_substr($rawDescription, 0, 400);
+                }
+            } catch (\Throwable $e) {
+                // Temizleme sırasında hata olursa olduğu gibi bırak
+            }
+        }
+
         $schema = Schema::product()
             ->name($product->name)
             ->sku($product->sku)
             ->url(url($product->url()))
             ->image(url($imagePath))
             ->brand($this->brandSchema($product))
-            ->description($product->short_description);
+            ->description($rawDescription);
 
         $offers = $this->offersSchema($product);
         if ($offers) {
@@ -78,8 +93,16 @@ class ProductShowPageComposer
         } catch (\Throwable $e) {
         }
 
-        if ($product->reviews()->count() > 0) {
+        $reviewsCount = $product->reviews()->count();
+
+        if ($reviewsCount > 0) {
             $schema->aggregateRating($this->aggregateRatingSchema($product));
+
+            $reviews = $this->reviewsSchema($product);
+
+            if (! empty($reviews)) {
+                $schema->review($reviews);
+            }
         }
 
         return $schema;
@@ -105,6 +128,92 @@ class ProductShowPageComposer
         return Schema::aggregateRating()
             ->ratingValue($product->reviews()->avg('rating'))
             ->ratingCount($product->reviews()->count());
+    }
+
+
+    private function reviewsSchema(Product $product): array
+    {
+        try {
+            $reviews = $product->reviews()
+                ->latest()
+                ->take(50)
+                ->get();
+
+            if ($reviews->isEmpty()) {
+                return [];
+            }
+
+            return $reviews->map(function ($review) {
+                try {
+                    $authorName = trim((string) $review->reviewer_name);
+                } catch (\Throwable $e) {
+                    $authorName = '';
+                }
+
+                $author = null;
+
+                if ($authorName !== '') {
+                    $author = Schema::person()->name($authorName);
+                }
+
+                $ratingValue = null;
+
+                try {
+                    $ratingValue = (int) $review->rating;
+                } catch (\Throwable $e) {
+                    $ratingValue = null;
+                }
+
+                $ratingSchema = null;
+
+                if ($ratingValue && $ratingValue > 0) {
+                    $ratingSchema = Schema::rating()
+                        ->ratingValue($ratingValue)
+                        ->bestRating(5)
+                        ->worstRating(1);
+                }
+
+                $reviewBody = '';
+
+                try {
+                    $reviewBody = trim(strip_tags((string) $review->comment));
+                } catch (\Throwable $e) {
+                    $reviewBody = '';
+                }
+
+                $datePublished = null;
+
+                try {
+                    if ($review->created_at) {
+                        $datePublished = $review->created_at->toDateString();
+                    }
+                } catch (\Throwable $e) {
+                    $datePublished = null;
+                }
+
+                $schemaReview = Schema::review();
+
+                if ($author) {
+                    $schemaReview->author($author);
+                }
+
+                if ($reviewBody !== '') {
+                    $schemaReview->reviewBody($reviewBody);
+                }
+
+                if ($ratingSchema) {
+                    $schemaReview->reviewRating($ratingSchema);
+                }
+
+                if ($datePublished) {
+                    $schemaReview->datePublished($datePublished);
+                }
+
+                return $schemaReview;
+            })->all();
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
 
@@ -144,6 +253,8 @@ class ProductShowPageComposer
                     ->url(url($product->url()))
                     ->setProperty('itemCondition', 'https://schema.org/NewCondition');
 
+                $offer = $this->attachShippingDetails($offer);
+
                 return $this->attachPriceValidUntil($offer, $product);
             }
 
@@ -156,6 +267,8 @@ class ProductShowPageComposer
                     ->availability($v->isInStock() ? ItemAvailability::InStock : ItemAvailability::OutOfStock)
                     ->url(url($product->url()))
                     ->setProperty('itemCondition', 'https://schema.org/NewCondition');
+
+                $offer = $this->attachShippingDetails($offer);
 
                 return $this->attachPriceValidUntil($offer, $product);
             }
@@ -187,6 +300,8 @@ class ProductShowPageComposer
                 ->url(url($product->url()))
                 ->setProperty('itemCondition', 'https://schema.org/NewCondition');
 
+            $offer = $this->attachShippingDetails($offer);
+
             return $this->attachPriceValidUntil($offer, $product);
         }
     }
@@ -209,6 +324,80 @@ class ProductShowPageComposer
         }
 
         return $offer;
+    }
+
+
+    private function attachShippingDetails($offer)
+    {
+        try {
+            /** @var SmartShippingCalculator $calculator */
+            $calculator = app(SmartShippingCalculator::class);
+
+            if (! $calculator->isEnabled()) {
+                return $offer;
+            }
+
+            $shippingMoney = $calculator->costForCurrentCart();
+
+            try {
+                $amount = $shippingMoney->convertToCurrentCurrency()->amount();
+                $priceStr = number_format((float) $amount, 2, '.', '');
+            } catch (\Throwable $e) {
+                $priceStr = null;
+            }
+
+            if (! $priceStr || (float) $priceStr < 0) {
+                return $offer;
+            }
+
+            $shippingRate = Schema::monetaryAmount()
+                ->value($priceStr)
+                ->currency(currency());
+
+            $details = Schema::offerShippingDetails()
+                ->shippingRate($shippingRate);
+
+            // deliveryTime (ShippingDeliveryTime) içinde handlingTime + transitTime
+            try {
+                $handlingValue = Schema::quantitativeValue()
+                    ->minValue(1)
+                    ->maxValue(3)
+                    ->unitCode('d'); // 1-3 gün hazırlama süresi
+
+                $transitValue = Schema::quantitativeValue()
+                    ->minValue(1)
+                    ->maxValue(4)
+                    ->unitCode('d'); // 1-4 gün teslim süresi
+
+                $deliveryTime = Schema::shippingDeliveryTime()
+                    ->handlingTime($handlingValue)
+                    ->transitTime($transitValue);
+
+                $details->deliveryTime($deliveryTime);
+            } catch (\Throwable $e) {
+                // deliveryTime isteğe bağlı; hata olursa yoksay
+            }
+
+            // shippingDestination (isteğe bağlı) - mağaza ülkesine göre
+            try {
+                $country = (string) (setting('store_country') ?: 'TR');
+
+                if ($country !== '') {
+                    $destination = Schema::definedRegion()
+                        ->addressCountry($country);
+
+                    $details->shippingDestination($destination);
+                }
+            } catch (\Throwable $e) {
+                // shippingDestination isteğe bağlı; hata olursa yoksay
+            }
+
+            $offer->shippingDetails($details);
+
+            return $offer;
+        } catch (\Throwable $e) {
+            return $offer;
+        }
     }
 
     private function buildCategoryPath(Product $product): ?string

@@ -39,13 +39,41 @@
                     </div>
                 @else
                     @foreach ($product->variant->media as $media)
+                        @php(
+                            $detailAvif = $media->detail_avif_url ?? $media->grid_avif_url ?? null
+                        )
+                        @php(
+                            $detailWebp = $media->detail_webp_url ?? $media->grid_webp_url ?? null
+                        )
+                        @php(
+                            $detailJpeg = $media->detail_jpeg_url
+                                ?? $media->grid_jpeg_url
+                                ?? $media->path
+                                ?? asset('build/assets/image-placeholder.png')
+                        )
                         <div class="swiper-slide">
                             <div class="gallery-preview-slide">
                                 <div class="gallery-preview-item" @click="triggerGalleryPreviewLightbox($event)">
-                                    <img src="{{ $media->path }}" data-zoom="{{ $media->path }}" alt="{{ $product->name }}">
+                                    <picture>
+                                        @if ($detailAvif)
+                                            <source srcset="{{ $detailAvif }}" type="image/avif">
+                                        @endif
+
+                                        @if ($detailWebp)
+                                            <source srcset="{{ $detailWebp }}" type="image/webp">
+                                        @endif
+
+                                        <img
+                                            src="{{ $detailJpeg }}"
+                                            data-zoom="{{ $detailJpeg }}"
+                                            alt="{{ $product->name }}"
+                                            loading="lazy"
+                                            decoding="async"
+                                        >
+                                    </picture>
                                 </div>
 
-                                <a href="{{ $media->path }}" data-gallery="product-gallery-preview" class="gallery-view-icon glightbox">
+                                <a href="{{ $detailJpeg }}" data-gallery="product-gallery-preview" class="gallery-view-icon glightbox">
                                     <i class="las la-search-plus"></i>
                                 </a>
                             </div>
@@ -53,13 +81,41 @@
                     @endforeach
 
                     @foreach ($product->media as $media)
+                        @php(
+                            $detailAvif = $media->detail_avif_url ?? $media->grid_avif_url ?? null
+                        )
+                        @php(
+                            $detailWebp = $media->detail_webp_url ?? $media->grid_webp_url ?? null
+                        )
+                        @php(
+                            $detailJpeg = $media->detail_jpeg_url
+                                ?? $media->grid_jpeg_url
+                                ?? $media->path
+                                ?? asset('build/assets/image-placeholder.png')
+                        )
                         <div class="swiper-slide">
                             <div class="gallery-preview-slide">
                                 <div class="gallery-preview-item" @click="triggerGalleryPreviewLightbox($event)">
-                                    <img src="{{ $media->path }}" data-zoom="{{ $media->path }}" alt="{{ $product->name }}">
+                                    <picture>
+                                        @if ($detailAvif)
+                                            <source srcset="{{ $detailAvif }}" type="image/avif">
+                                        @endif
+
+                                        @if ($detailWebp)
+                                            <source srcset="{{ $detailWebp }}" type="image/webp">
+                                        @endif
+
+                                        <img
+                                            src="{{ $detailJpeg }}"
+                                            data-zoom="{{ $detailJpeg }}"
+                                            alt="{{ $product->name }}"
+                                            loading="lazy"
+                                            decoding="async"
+                                        >
+                                    </picture>
                                 </div>
 
-                                <a href="{{ $media->path }}" data-gallery="product-gallery-preview" class="gallery-view-icon glightbox">
+                                <a href="{{ $detailJpeg }}" data-gallery="product-gallery-preview" class="gallery-view-icon glightbox">
                                     <i class="las la-search-plus"></i>
                                 </a>
                             </div>
@@ -79,6 +135,7 @@
                                     <video
                                         class="product-main-media product-main-media--video"
                                         controls
+                                        controlslist="nofullscreen"
                                         playsinline
                                         preload="metadata"
                                         poster="{{ $poster }}"
@@ -110,20 +167,74 @@
                 </div>
             @else
                 @foreach ($product->variant->media as $media)
+                    @php(
+                        $thumbAvif = $media->thumb_avif_url ?? $media->grid_avif_url ?? null
+                    )
+                    @php(
+                        $thumbWebp = $media->thumb_webp_url ?? $media->grid_webp_url ?? null
+                    )
+                    @php(
+                        $thumbJpeg = $media->thumb_jpeg_url
+                            ?? $media->grid_jpeg_url
+                            ?? $media->path
+                            ?? asset('build/assets/image-placeholder.png')
+                    )
                     <div class="swiper-slide">
                         <div class="gallery-thumbnail-slide">
                             <div class="gallery-thumbnail-item">
-                                <img src="{{ $media->path }}" alt="{{ $product->name }}">
+                                <picture>
+                                    @if ($thumbAvif)
+                                        <source srcset="{{ $thumbAvif }}" type="image/avif">
+                                    @endif
+
+                                    @if ($thumbWebp)
+                                        <source srcset="{{ $thumbWebp }}" type="image/webp">
+                                    @endif
+
+                                    <img
+                                        src="{{ $thumbJpeg }}"
+                                        alt="{{ $product->name }}"
+                                        loading="lazy"
+                                        decoding="async"
+                                    >
+                                </picture>
                             </div>
                         </div>
                     </div>
                 @endforeach
 
                 @foreach ($product->media as $media)
+                    @php(
+                        $thumbAvif = $media->thumb_avif_url ?? $media->grid_avif_url ?? null
+                    )
+                    @php(
+                        $thumbWebp = $media->thumb_webp_url ?? $media->grid_webp_url ?? null
+                    )
+                    @php(
+                        $thumbJpeg = $media->thumb_jpeg_url
+                            ?? $media->grid_jpeg_url
+                            ?? $media->path
+                            ?? asset('build/assets/image-placeholder.png')
+                    )
                     <div class="swiper-slide">
                         <div class="gallery-thumbnail-slide">
                             <div class="gallery-thumbnail-item">
-                                <img src="{{ $media->path }}" alt="{{ $product->name }}">
+                                <picture>
+                                    @if ($thumbAvif)
+                                        <source srcset="{{ $thumbAvif }}" type="image/avif">
+                                    @endif
+
+                                    @if ($thumbWebp)
+                                        <source srcset="{{ $thumbWebp }}" type="image/webp">
+                                    @endif
+
+                                    <img
+                                        src="{{ $thumbJpeg }}"
+                                        alt="{{ $product->name }}"
+                                        loading="lazy"
+                                        decoding="async"
+                                    >
+                                </picture>
                             </div>
                         </div>
                     </div>

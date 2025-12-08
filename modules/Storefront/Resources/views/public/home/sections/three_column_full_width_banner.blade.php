@@ -10,7 +10,33 @@
                     class="banner"
                     target="{{ $threeColumnFullWidthBanners['banner_1']->open_in_new_window ? '_blank' : '_self' }}"
                 >
-                    <img src="{{ $threeColumnFullWidthBanners['banner_1']->image->path }}" alt="Banner" loading="lazy" />
+                    @php(
+                        $banner1Avif = $threeColumnFullWidthBanners['banner_1']->image->detail_avif_url
+                            ?? $threeColumnFullWidthBanners['banner_1']->image->grid_avif_url
+                            ?? null
+                    )
+                    @php(
+                        $banner1Webp = $threeColumnFullWidthBanners['banner_1']->image->detail_webp_url
+                            ?? $threeColumnFullWidthBanners['banner_1']->image->grid_webp_url
+                            ?? null
+                    )
+                    @php(
+                        $banner1Jpeg = $threeColumnFullWidthBanners['banner_1']->image->detail_jpeg_url
+                            ?? $threeColumnFullWidthBanners['banner_1']->image->grid_jpeg_url
+                            ?? $threeColumnFullWidthBanners['banner_1']->image->path
+                    )
+
+                    <picture>
+                        @if ($banner1Avif)
+                            <source srcset="{{ $banner1Avif }}" type="image/avif">
+                        @endif
+
+                        @if ($banner1Webp)
+                            <source srcset="{{ $banner1Webp }}" type="image/webp">
+                        @endif
+
+                        <img src="{{ $banner1Jpeg }}" alt="Banner" loading="lazy" />
+                    </picture>
                 </a>
             </div>
 
@@ -20,7 +46,33 @@
                     class="banner"
                     target="{{ $threeColumnFullWidthBanners['banner_2']->open_in_new_window ? '_blank' : '_self' }}"
                 >
-                    <img src="{{ $threeColumnFullWidthBanners['banner_2']->image->path }}" alt="Banner" loading="lazy" />
+                    @php(
+                        $banner2Avif = $threeColumnFullWidthBanners['banner_2']->image->detail_avif_url
+                            ?? $threeColumnFullWidthBanners['banner_2']->image->grid_avif_url
+                            ?? null
+                    )
+                    @php(
+                        $banner2Webp = $threeColumnFullWidthBanners['banner_2']->image->detail_webp_url
+                            ?? $threeColumnFullWidthBanners['banner_2']->image->grid_webp_url
+                            ?? null
+                    )
+                    @php(
+                        $banner2Jpeg = $threeColumnFullWidthBanners['banner_2']->image->detail_jpeg_url
+                            ?? $threeColumnFullWidthBanners['banner_2']->image->grid_jpeg_url
+                            ?? $threeColumnFullWidthBanners['banner_2']->image->path
+                    )
+
+                    <picture>
+                        @if ($banner2Avif)
+                            <source srcset="{{ $banner2Avif }}" type="image/avif">
+                        @endif
+
+                        @if ($banner2Webp)
+                            <source srcset="{{ $banner2Webp }}" type="image/webp">
+                        @endif
+
+                        <img src="{{ $banner2Jpeg }}" alt="Banner" loading="lazy" />
+                    </picture>
                 </a>
             </div>
 
@@ -30,7 +82,33 @@
                     class="banner"
                     target="{{ $threeColumnFullWidthBanners['banner_3']->open_in_new_window ? '_blank' : '_self' }}"
                 >
-                    <img src="{{ $threeColumnFullWidthBanners['banner_3']->image->path }}" alt="Banner" loading="lazy" />
+                    @php(
+                        $banner3Avif = $threeColumnFullWidthBanners['banner_3']->image->detail_avif_url
+                            ?? $threeColumnFullWidthBanners['banner_3']->image->grid_avif_url
+                            ?? null
+                    )
+                    @php(
+                        $banner3Webp = $threeColumnFullWidthBanners['banner_3']->image->detail_webp_url
+                            ?? $threeColumnFullWidthBanners['banner_3']->image->grid_webp_url
+                            ?? null
+                    )
+                    @php(
+                        $banner3Jpeg = $threeColumnFullWidthBanners['banner_3']->image->detail_jpeg_url
+                            ?? $threeColumnFullWidthBanners['banner_3']->image->grid_jpeg_url
+                            ?? $threeColumnFullWidthBanners['banner_3']->image->path
+                    )
+
+                    <picture>
+                        @if ($banner3Avif)
+                            <source srcset="{{ $banner3Avif }}" type="image/avif">
+                        @endif
+
+                        @if ($banner3Webp)
+                            <source srcset="{{ $banner3Webp }}" type="image/webp">
+                        @endif
+
+                        <img src="{{ $banner3Jpeg }}" alt="Banner" loading="lazy" />
+                    </picture>
                 </a>
             </div>
         </div>

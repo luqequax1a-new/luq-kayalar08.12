@@ -14,6 +14,9 @@ use Modules\Product\Transformers\ProductEditResource;
 use Modules\Product\Services\ProductDuplicator;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Http\Request;
+use Modules\Brand\Entities\Brand;
+use Modules\Category\Entities\Category;
 
 class ProductController
 {
@@ -48,8 +51,28 @@ class ProductController
     protected string|array $validation = SaveProductRequest::class;
 
 
-    
+    /**
+     * Display a listing of the resource with filters.
+     *
+     * @param Request $request
+     * @return \Illuminate\View\View|\Illuminate\Support\Collection
+     */
+    public function index(Request $request)
+    {
+        // Preserve default search behavior from HasCrudActions
+        if ($request->has('query')) {
+            return $this->getModel()
+                ->search($request->get('query'))
+                ->query()
+                ->limit($request->get('limit', 10))
+                ->get();
+        }
 
+        $brands = Brand::list();
+        $categories = Category::treeList();
+
+        return view("{$this->viewPath}.index", compact('brands', 'categories'));
+    }
 
     /**
      * Store a newly created resource in storage.
@@ -269,6 +292,73 @@ class ProductController
         ], 200);
     }
 
+
+    public function updateBrand($id)
+    {
+        $entity = $this->getEntity($id);
+
+        $brandId = request('brand_id');
+        if ($brandId === '' || $brandId === null) {
+            $brandId = null;
+        } else {
+            $brandId = (int) $brandId ?: null;
+        }
+
+        $entity->update([
+            'brand_id' => $brandId,
+        ]);
+
+        return response()->json([
+            'success' => true,
+        ], 200);
+    }
+
+
+    public function updatePricing($id)
+    {
+        $entity = $this->getEntity($id);
+
+        $payload = request()->all();
+
+        $productUpdate = [];
+        if (array_key_exists('price', $payload) && is_numeric($payload['price'])) {
+            $productUpdate['price'] = (float) $payload['price'];
+        }
+        if (array_key_exists('special_price', $payload) && $payload['special_price'] !== null && $payload['special_price'] !== '') {
+            $sp = $payload['special_price'];
+            $productUpdate['special_price'] = is_numeric($sp) ? (float) $sp : null;
+        }
+        if (!empty($productUpdate)) {
+            $entity->update($productUpdate);
+        }
+
+        if (array_key_exists('variants', $payload) && is_array($payload['variants'])) {
+            foreach ($payload['variants'] as $vid => $attrs) {
+                $variant = $entity->variants()->withoutGlobalScope('active')->where('id', $vid)->first();
+                if ($variant) {
+                    $update = [];
+                    if (isset($attrs['price']) && is_numeric($attrs['price'])) {
+                        $update['price'] = (float) $attrs['price'];
+                    }
+                    if (isset($attrs['special_price'])) {
+                        $sp = $attrs['special_price'];
+                        $update['special_price'] = ($sp === '' || $sp === null) ? null : (float) $sp;
+                    }
+
+                    if (!empty($update)) {
+                        $variant->update($update);
+                    }
+                }
+            }
+        }
+
+        $entity->refresh();
+
+        return response()->json([
+            'success' => true,
+        ], 200);
+    }
+
     /**
      * Permanently delete resources by given ids (force delete) and detach relations.
      *
@@ -332,6 +422,22 @@ class ProductController
             $entity->load(['variants' => function ($q) {
                 $q->withoutGlobalScope('active')->orderBy('position');
             }, 'saleUnit'])
+        );
+
+        return response()->json([
+            'success' => true,
+            'product' => $resource->toArray(request()),
+        ], 200);
+    }
+
+
+    public function pricing($id)
+    {
+        $entity = $this->getEntity($id);
+        $resource = new ProductEditResource(
+            $entity->load(['variants' => function ($q) {
+                $q->withoutGlobalScope('active')->orderBy('position');
+            }])
         );
 
         return response()->json([
@@ -412,5 +518,374 @@ class ProductController
         }
 
         return redirect()->to($redirectUrl)->withSuccess($message);
+    }
+
+
+    public function bulkEditor(): Factory|View|Application
+    {
+        $brands = Brand::list();
+        $categories = Category::treeList();
+
+        // Use the same treeList output as a flat id => name array for selects
+        $flatCategories = $categories;
+
+        $categoryTree = Category::query()
+            ->orderBy('position')
+            ->get()
+            ->map(function ($cat) {
+                return [
+                    'id' => (string) $cat->id,
+                    'parent' => $cat->parent_id ? (string) $cat->parent_id : '#',
+                    'text' => $cat->name,
+                ];
+            });
+
+        return view('product::admin.products.bulk_editor', compact('brands', 'categories', 'flatCategories', 'categoryTree'));
+    }
+
+
+    public function bulkPreview(Request $request): JsonResponse
+    {
+        $filters = $request->input('filters', []);
+        $combine = strtolower($request->input('combine', 'and')) === 'or' ? 'or' : 'and';
+
+        $query = Product::query()
+            ->withoutGlobalScope('active')
+            ->with(['primaryCategory', 'brand'])
+            ->withBaseImage();
+
+        $this->applyBulkFilters($query, $filters, $combine);
+
+        $total = (clone $query)->count();
+
+        $items = $query
+            ->limit(50)
+            ->get()
+            ->map(function (Product $product) {
+                $rawPrice = $product->getAttribute('price');
+                $rawSpecial = $product->getAttribute('special_price');
+
+                $price = null;
+                $priceFormatted = null;
+                if ($rawPrice instanceof \Modules\Support\Money) {
+                    $price = $rawPrice->amount();
+                    $priceFormatted = $rawPrice->format();
+                } elseif (is_numeric($rawPrice)) {
+                    $price = (float) $rawPrice;
+                    try {
+                        $priceFormatted = \Modules\Support\Money::inDefaultCurrency($price)->format();
+                    } catch (\Throwable $e) {
+                        $priceFormatted = number_format($price, 2);
+                    }
+                }
+
+                $special = null;
+                $specialFormatted = null;
+                if ($rawSpecial instanceof \Modules\Support\Money) {
+                    $special = $rawSpecial->amount();
+                    $specialFormatted = $rawSpecial->format();
+                } elseif ($rawSpecial !== null && $rawSpecial !== '' && is_numeric($rawSpecial)) {
+                    $special = (float) $rawSpecial;
+                    try {
+                        $specialFormatted = \Modules\Support\Money::inDefaultCurrency($special)->format();
+                    } catch (\Throwable $e) {
+                        $specialFormatted = number_format($special, 2);
+                    }
+                }
+
+                $category = $product->primaryCategory;
+                $categoryName = '';
+                if ($category) {
+                    $categoryName = $category->name;
+
+                    if ($categoryName === null || $categoryName === '') {
+                        try {
+                            $translation = $category->translations()
+                                ->withoutGlobalScope('locale')
+                                ->first();
+                            if ($translation && isset($translation->name)) {
+                                $categoryName = $translation->name;
+                            }
+                        } catch (\Throwable $e) {
+                            // ignore
+                        }
+                    }
+                }
+
+                // Resolve a simple image URL from base_image accessor (if available)
+                $imageUrl = null;
+                $baseImage = $product->base_image ?? null;
+
+                if ($baseImage) {
+                    $path = null;
+
+                    if (is_array($baseImage)) {
+                        $path = $baseImage['path'] ?? null;
+                    } elseif (is_object($baseImage)) {
+                        // Typical ProductMedia model instance
+                        $path = $baseImage->path ?? null;
+                    }
+
+                    if (is_string($path) && $path !== '') {
+                        if (preg_match('#^https?://#', $path)) {
+                            $imageUrl = $path;
+                        } else {
+                            if (str_starts_with($path, '/')) {
+                                $imageUrl = url($path);
+                            } elseif (str_starts_with($path, 'storage/')) {
+                                $imageUrl = url('/' . $path);
+                            } else {
+                                $imageUrl = url('/storage/' . $path);
+                            }
+                        }
+                    }
+                }
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'brand' => optional($product->brand)->name,
+                    'category' => $categoryName,
+                    'price' => $price,
+                    'price_formatted' => $priceFormatted,
+                    'special_price' => $special,
+                    'special_price_formatted' => $specialFormatted,
+                    'image' => $imageUrl,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'total' => $total,
+            'items' => $items,
+        ], 200);
+    }
+
+
+    public function bulkUpdate(Request $request): JsonResponse
+    {
+        $filters = $request->input('filters', []);
+        $combine = strtolower($request->input('combine', 'and')) === 'or' ? 'or' : 'and';
+        $actions = $request->input('actions', []);
+
+        if (empty($actions) || !is_array($actions)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No update actions provided.',
+            ], 422);
+        }
+
+        $query = Product::query()
+            ->withoutGlobalScope('active')
+            ->with(['variants' => function ($q) {
+                $q->withoutGlobalScope('active');
+            }]);
+
+        $this->applyBulkFilters($query, $filters, $combine);
+
+        $products = $query->get();
+
+        if ($products->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No products matched the given filters.',
+            ], 422);
+        }
+
+        foreach ($products as $product) {
+            $baseUpdates = [];
+
+            foreach ($actions as $action) {
+                $attribute = $action['attribute'] ?? null;
+                $mode = $action['mode'] ?? null;
+                $value = $action['value'] ?? null;
+
+                if ($attribute === 'price') {
+                    $rawCurrent = $product->getAttribute('price');
+
+                    if ($rawCurrent instanceof \Modules\Support\Money) {
+                        $current = $rawCurrent->amount();
+                    } elseif (is_numeric($rawCurrent)) {
+                        $current = (float) $rawCurrent;
+                    } else {
+                        $current = 0.0;
+                    }
+
+                    if ($mode === 'set' && is_numeric($value)) {
+                        $newPrice = (float) $value;
+                    } elseif (($mode === 'increase_percent' || $mode === 'decrease_percent') && is_numeric($value)) {
+                        $percent = (float) $value;
+                        $delta = $current * ($percent / 100);
+                        $newPrice = $mode === 'increase_percent' ? $current + $delta : $current - $delta;
+                    } else {
+                        continue;
+                    }
+
+                    if ($newPrice < 0) {
+                        $newPrice = 0;
+                    }
+
+                    $baseUpdates['price'] = $newPrice;
+
+                    foreach ($product->variants as $variant) {
+                        $rawVariantPrice = $variant->getAttribute('price');
+                        if ($rawVariantPrice instanceof \Modules\Support\Money) {
+                            $variantCurrent = $rawVariantPrice->amount();
+                        } elseif (is_numeric($rawVariantPrice)) {
+                            $variantCurrent = (float) $rawVariantPrice;
+                        } else {
+                            $variantCurrent = 0.0;
+                        }
+
+                        $variantNew = $variantCurrent;
+
+                        if ($mode === 'set' && is_numeric($value)) {
+                            $variantNew = (float) $value;
+                        } elseif (($mode === 'increase_percent' || $mode === 'decrease_percent') && is_numeric($value)) {
+                            $deltaV = $variantCurrent * ((float) $value / 100);
+                            $variantNew = $mode === 'increase_percent' ? $variantCurrent + $deltaV : $variantCurrent - $deltaV;
+                        }
+
+                        if ($variantNew < 0) {
+                            $variantNew = 0;
+                        }
+
+                        $variant->update(['price' => $variantNew]);
+                    }
+                }
+
+                if ($attribute === 'special_price') {
+                    if ($mode === 'set' && is_numeric($value)) {
+                        $sp = (float) $value;
+                        $baseUpdates['special_price'] = $sp;
+
+                        foreach ($product->variants as $variant) {
+                            $variant->update(['special_price' => $sp]);
+                        }
+                    } elseif ($mode === 'clear') {
+                        $baseUpdates['special_price'] = null;
+
+                        foreach ($product->variants as $variant) {
+                            $variant->update(['special_price' => null]);
+                        }
+                    }
+                }
+
+                if ($attribute === 'primary_category') {
+                    if ($mode === 'set' && $value) {
+                        $newCategoryId = (int) $value;
+                        if ($newCategoryId > 0) {
+                            $baseUpdates['primary_category_id'] = $newCategoryId;
+
+                            // Ensure pivot relation exists so SEO/category helpers behave correctly
+                            try {
+                                $product->categories()->syncWithoutDetaching([$newCategoryId]);
+                            } catch (\Throwable $e) {
+                                // ignore pivot sync errors in bulk context
+                            }
+                        }
+                    }
+                }
+
+                if ($attribute === 'short_description') {
+                    if ($mode === 'set' && is_string($value) && $value !== '') {
+                        foreach ($product->translations as $translation) {
+                            $translation->short_description = $value;
+                            $translation->save();
+                        }
+                    }
+                }
+            }
+
+            if (!empty($baseUpdates)) {
+                $product->update($baseUpdates);
+            }
+        }
+
+        return response()->json([
+            'success' => true,
+            'updated' => $products->count(),
+        ], 200);
+    }
+
+
+    protected function applyBulkFilters($query, array $filters, string $combine): void
+    {
+        if (empty($filters)) {
+            return;
+        }
+
+        $boolean = $combine === 'or' ? 'or' : 'and';
+
+        $query->where(function ($outer) use ($filters, $boolean) {
+            foreach ($filters as $index => $filter) {
+                $attribute = $filter['attribute'] ?? null;
+                $operator = $filter['operator'] ?? null;
+                $value = $filter['value'] ?? null;
+
+                if (!$attribute || $operator === null) {
+                    continue;
+                }
+
+                $method = $index === 0 ? 'where' : ($boolean === 'or' ? 'orWhere' : 'where');
+
+                if ($attribute === 'name') {
+                    if (!is_string($value) || trim($value) === '') {
+                        continue;
+                    }
+                    $outer->{$method}(function ($q) use ($operator, $value) {
+                        if ($operator === 'contains') {
+                            $q->whereHas('translations', function ($t) use ($value) {
+                                $t->where('name', 'like', '%' . $value . '%');
+                            });
+                        }
+                    });
+                } elseif ($attribute === 'brand') {
+                    if ($value === null || $value === '') {
+                        continue;
+                    }
+                    $outer->{$method}(function ($q) use ($operator, $value) {
+                        if ($operator === '=') {
+                            $q->where('brand_id', (int) $value);
+                        }
+                    });
+                } elseif ($attribute === 'category') {
+                    $ids = is_array($value) ? $value : [$value];
+                    $ids = array_filter(array_map('intval', $ids));
+
+                    if (empty($ids)) {
+                        continue;
+                    }
+
+                    $outer->{$method}(function ($q) use ($ids) {
+                        $q->where(function ($sub) use ($ids) {
+                            $sub->whereIn('primary_category_id', $ids)
+                                ->orWhereHas('categories', function ($cat) use ($ids) {
+                                    $cat->whereIn('categories.id', $ids);
+                                });
+                        });
+                    });
+                } elseif ($attribute === 'price') {
+                    if (!is_numeric($value)) {
+                        continue;
+                    }
+                    $v = (float) $value;
+
+                    $outer->{$method}(function ($q) use ($operator, $v) {
+                        if ($operator === '>=') {
+                            $q->where('price', '>=', $v);
+                        } elseif ($operator === '<=') {
+                            $q->where('price', '<=', $v);
+                        } elseif ($operator === '>') {
+                            $q->where('price', '>', $v);
+                        } elseif ($operator === '<') {
+                            $q->where('price', '<', $v);
+                        } elseif ($operator === '=') {
+                            $q->where('price', '=', $v);
+                        }
+                    });
+                }
+            }
+        });
     }
 }

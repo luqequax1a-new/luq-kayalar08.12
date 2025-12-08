@@ -1,0 +1,35 @@
+<?php
+
+namespace Modules\DynamicCategory\Providers;
+
+use Illuminate\Support\ServiceProvider;
+use Modules\Admin\Ui\Facades\TabManager;
+use Modules\DynamicCategory\Admin\DynamicCategoryTabs;
+
+class DynamicCategoryServiceProvider extends ServiceProvider
+{
+    public function boot(): void
+    {
+        $this->loadMigrationsFrom(__DIR__ . '/../Database/Migrations');
+        $this->loadTranslationsFrom(__DIR__ . '/../Resources/lang', 'dynamic_category');
+        $this->loadViewsFrom(__DIR__ . '/../Resources/views', 'dynamic_category');
+
+        $this->loadRoutesFrom(__DIR__ . '/../Routes/admin.php');
+
+        TabManager::register('dynamic_categories', DynamicCategoryTabs::class);
+    }
+
+    public function register(): void
+    {
+        // Ensure permissions are visible to User\Repositories\Permission
+        // Core ModuleServiceProvider already merges permissions under
+        // fleetcart.modules.dynamic_category.permissions (using alias),
+        // but Permission::all() looks for fleetcart.modules.dynamiccategory.permissions
+        // (using strtolower(Module::getName())). We mirror the config there as well.
+
+        $this->mergeConfigFrom(
+            __DIR__ . '/../Config/permissions.php',
+            'fleetcart.modules.dynamiccategory.permissions'
+        );
+    }
+}

@@ -88,7 +88,7 @@ class Page extends Model implements Sitemapable
      */
     public function table()
     {
-        return new AdminTable($this->newQuery()->withoutGlobalScope('active'));
+        return new \Modules\Page\Admin\PageTable($this->newQuery()->withoutGlobalScope('active'));
     }
 
 

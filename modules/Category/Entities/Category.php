@@ -10,6 +10,7 @@ use Modules\Support\Eloquent\Model;
 use Modules\Media\Eloquent\HasMedia;
 use Illuminate\Support\Facades\Cache;
 use Modules\Product\Entities\Product;
+use Modules\Category\Entities\CategoryFaq;
 use Modules\Support\Eloquent\Sluggable;
 use Spatie\Sitemap\Contracts\Sitemapable;
 use Modules\Support\Eloquent\Translatable;
@@ -30,7 +31,7 @@ class Category extends Model implements Sitemapable
      *
      * @var array
      */
-    protected $fillable = ['parent_id', 'slug', 'position', 'is_searchable', 'is_active', 'meta_title', 'meta_description'];
+    protected $fillable = ['parent_id', 'slug', 'position', 'is_searchable', 'is_active', 'meta_title', 'meta_description', 'description', 'faq', 'faq_items'];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -47,6 +48,7 @@ class Category extends Model implements Sitemapable
     protected $casts = [
         'is_searchable' => 'boolean',
         'is_active' => 'boolean',
+        'faq_items' => 'array',
     ];
 
     /**
@@ -183,11 +185,72 @@ class Category extends Model implements Sitemapable
     }
 
 
+    public function faqs()
+    {
+        return $this->hasMany(CategoryFaq::class)->orderBy('position');
+    }
+
+
+    public function descendantsAndSelfIds()
+    {
+        $all = static::query()->select('id', 'parent_id')->get();
+
+        $ids = [];
+        $stack = [$this->id];
+
+        while (! empty($stack)) {
+            $parentId = array_pop($stack);
+
+            if (in_array($parentId, $ids, true)) {
+                continue;
+            }
+
+            $ids[] = $parentId;
+
+            foreach ($all->where('parent_id', $parentId) as $child) {
+                $stack[] = $child->id;
+            }
+        }
+
+        return collect($ids);
+    }
+
+
     public function getLogoAttribute()
     {
         return $this->files->where('pivot.zone', 'logo')->first() ?: new File;
     }
 
+    public function getLogoUrlAttribute()
+    {
+        return $this->logo ? $this->logo->path : null;
+    }
+
+    public function getFaqJsonArrayAttribute(): array
+    {
+        $raw = $this->faq;
+
+        if (is_array($raw)) {
+            return $raw;
+        }
+
+        if (! is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        $decoded = json_decode($raw, true);
+
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            return $decoded;
+        }
+
+        return [
+            [
+                'q' => 'Genel Bilgi',
+                'a' => (string) $raw,
+            ],
+        ];
+    }
 
     public function getBannerAttribute()
     {

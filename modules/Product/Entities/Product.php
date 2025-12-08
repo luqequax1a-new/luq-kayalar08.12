@@ -232,9 +232,21 @@ class Product extends Model implements Sitemapable
             ->withName()
             ->withBaseImage()
             ->withPrice()
-            ->with(['saleUnit','variants','primaryCategory'])
-            ->addSelect(['id', 'slug', 'is_active', 'in_stock', 'manage_stock', 'qty', 'created_at', 'updated_at'])
+            ->with(['saleUnit','variants','primaryCategory','brand'])
+            ->addSelect(['id', 'slug', 'brand_id', 'primary_category_id', 'is_active', 'in_stock', 'manage_stock', 'qty', 'created_at', 'updated_at'])
             ->addSelect(['sale_unit_id'])
+            ->when($request->has('brand_id') && $request->brand_id !== null && $request->brand_id !== '', function ($q) use ($request) {
+                $q->where('brand_id', (int) $request->brand_id);
+            })
+            ->when($request->has('category_id') && $request->category_id !== null && $request->category_id !== '', function ($q) use ($request) {
+                $categoryId = (int) $request->category_id;
+                $q->where(function ($sub) use ($categoryId) {
+                    $sub->where('primary_category_id', $categoryId)
+                        ->orWhereHas('categories', function ($cat) use ($categoryId) {
+                            $cat->where('categories.id', $categoryId);
+                        });
+                });
+            })
             ->when($request->has('except'), function ($query) use ($request) {
                 $query->whereNotIn('id', explode(',', $request->except));
             });

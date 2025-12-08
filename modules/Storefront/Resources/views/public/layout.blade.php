@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="{{ locale() }}">
     <head>
-        <base href="{{ url('/') }}/">
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+        <meta name="theme-color" content="#000000">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
 
         <title>
             @hasSection('title')
@@ -108,6 +110,14 @@
 
             @include('storefront::public.layouts.alert')
             @include('storefront::public.layouts.newsletter_popup')
+            @php
+                try {
+                    $activePopup = app(\Modules\Popup\Services\PopupMatcher::class)->matchForRequest(request());
+                } catch (\Throwable $e) {
+                    $activePopup = null;
+                }
+            @endphp
+            @includeIf('popup::public.layouts.popup')
             @include('storefront::public.layouts.cookie_bar')
             @include('storefront::public.layouts.scroll_to_top')
         </div>

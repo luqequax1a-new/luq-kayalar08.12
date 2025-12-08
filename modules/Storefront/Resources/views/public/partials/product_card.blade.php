@@ -44,42 +44,27 @@
                 />
             </picture>
 
+            @if (setting('storefront_grid_variant_badge_enabled'))
+                <div
+                    class="variant-grid-badge"
+                    x-show="(product.variants && product.variants.length) || product.variant"
+                >
+                    <span
+                        x-text="((product.variants && product.variants.length)
+                            ? product.variants.length
+                            : (product.variant ? 1 : 0))
+                            + ((product.variations && product.variations.length && product.variations[0].name)
+                                ? (' ' + product.variations[0].name)
+                                : '')"
+                    ></span>
+                </div>
+            @endif
+
             <div class="product-image-layer"></div>
         </a>
 
 
         <div class="product-card-actions">
-            <button
-                class="btn btn-wishlist"
-                :class="{ added: inWishlist }"
-                title="{{ trans('storefront::product_card.wishlist') }}"
-                @click="syncWishlist"
-            >
-                <template x-if="inWishlist">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M12.9747 2.66277C11.1869 1.56615 9.62661 2.00807 8.68927 2.71201C8.30487 3.00064 8.11274 3.14495 7.99967 3.14495C7.88661 3.14495 7.69447 3.00064 7.31007 2.71201C6.37275 2.00807 4.8124 1.56615 3.02463 2.66277C0.678387 4.10196 0.147487 8.84993 5.55936 12.8556C6.59015 13.6185 7.10554 14 7.99967 14C8.89381 14 9.40921 13.6185 10.44 12.8556C15.8519 8.84993 15.3209 4.10196 12.9747 2.66277Z" stroke="#1B1339" stroke-width="1.25" stroke-linecap="round"/>
-                    </svg>
-                </template>
-                
-                <template x-if="!inWishlist">
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                    >
-                        <path
-                            d="M12.62 20.81C12.28 20.93 11.72 20.93 11.38 20.81C8.48 19.82 2 15.69 2 8.68998C2 5.59998 4.49 3.09998 7.56 3.09998C9.38 3.09998 10.99 3.97998 12 5.33998C13.01 3.97998 14.63 3.09998 16.44 3.09998C19.51 3.09998 22 5.59998 22 8.68998C22 15.69 15.52 19.82 12.62 20.81Z"
-                            stroke="#292D32"
-                            stroke-width="1.5"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        />
-                    </svg>
-                </template>
-            </button>
-
             <button
                 class="btn btn-compare"
                 :class="{ added: inCompareList }"
@@ -127,7 +112,7 @@
     </div>
 
     <div class="product-card-middle" :class="{ 'has-rating': hasVisibleRating }">
-        <div class="variant-thumbnails" x-show="!product.list_variants_separately && product.variants && product.variants.length && !showAllVariants">
+        <div class="variant-thumbnails" x-show="!product.list_variants_separately && product.variants && product.variants.length">
             <template x-for="(variant, idx) in product.variants" :key="variant.id">
                 <template x-if="idx < 3">
                     <button type="button" class="variant-thumb" @mouseenter="previewVariant(variant)" @mouseleave="clearPreview()" @click="selectVariant(variant)">
@@ -145,26 +130,11 @@
                 </template>
             </template>
             <template x-if="product.variants.length > 3">
-                <button type="button" class="variant-count" @click.stop="toggleAllVariants()">+<span x-text="product.variants.length - 3"></span></button>
+                <a :href="productUrl" class="variant-count">+<span x-text="product.variants.length - 3"></span></a>
             </template>
         </div>
 
-        <div class="variant-all-inline" x-show="!product.list_variants_separately && product.variants && product.variants.length && showAllVariants">
-            <template x-for="variant in product.variants" :key="`all-` + variant.id">
-                <button type="button" class="variant-thumb" @mouseenter="previewVariant(variant)" @mouseleave="clearPreview()" @click="selectVariant(variant)">
-                    <img
-                        :src="(variant.base_image?.thumb_webp_url
-                                || variant.base_image?.thumb_jpeg_url
-                                || (variant.base_image && variant.base_image.path)
-                                || (baseImageThumb || baseImage))"
-                        :alt="variant.name"
-                        loading="lazy"
-                        width="80"
-                        height="80"
-                    />
-                </button>
-            </template>
-        </div>
+        {{-- inline all-variants grid disabled; +N links to product detail --}}
 
         <a :href="productUrl" class="product-name">
             <span x-text="productName"></span>

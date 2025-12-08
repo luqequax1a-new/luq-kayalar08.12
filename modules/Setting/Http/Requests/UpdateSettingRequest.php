@@ -34,6 +34,12 @@ class UpdateSettingRequest extends Request
      */
     public function rules()
     {
+        if ($this->get('context') === 'customizations') {
+            return [
+                'storefront_grid_variant_badge_enabled' => 'nullable|boolean',
+            ];
+        }
+
         if ($this->get('context') === 'whatsapp_module') {
             return [
                 'phone_number' => ['required', 'regex:/^[0-9]{10,15}$/'],

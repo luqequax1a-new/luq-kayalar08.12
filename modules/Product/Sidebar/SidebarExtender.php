@@ -44,6 +44,18 @@ class SidebarExtender extends BaseSidebarExtender
                         $this->auth->hasAccess('admin.products.index')
                     );
                 });
+
+                $item->item('Toplu Ürün Güncelleme', function (Item $item) {
+                    $item->weight(7);
+                    $item->route('admin.products.bulk_editor');
+                    $item->isActiveWhen(route('admin.products.bulk_editor', null, false));
+                    $item->authorize(
+                        $this->auth->hasAnyAccess([
+                            'admin.bulk_product_edits.manage',
+                            'admin.products.edit',
+                        ])
+                    );
+                });
             });
         });
 
@@ -80,6 +92,16 @@ class SidebarExtender extends BaseSidebarExtender
                     $item->route('admin.robots.edit');
                     $item->isActiveWhen(route('admin.robots.edit', null, false));
                     $item->authorize(true);
+                });
+
+                $item->item('Product Feeds', function (Item $item) {
+                    $item->weight(5);
+                    $item->route('admin.product_feeds.settings.index');
+                    $item->isActiveWhen(route('admin.product_feeds.settings.index', null, false));
+                    $item->icon('fa fa-rss');
+                    $item->authorize(
+                        $this->auth->hasAccess('admin.settings.edit')
+                    );
                 });
             });
         });

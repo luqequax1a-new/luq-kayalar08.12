@@ -1,3 +1,4 @@
+import Alpine from "alpinejs";
 import { generateUid } from "../../../functions";
 import { Navigation } from "swiper/modules";
 import Swiper from "swiper";
@@ -25,6 +26,8 @@ const {
     initialCategoryName,
     initialCategoryBanner,
     initialCategorySlug,
+    initialCategoryDescriptionHtml,
+    initialCategoryFaqItems,
     initialTagName,
     initialTagSlug,
     initialAttribute,
@@ -44,7 +47,12 @@ Alpine.data("ProductIndex", () => ({
     initialTagName,
     brandBanner: initialBrandBanner,
     categoryName: initialCategoryName,
+    categorySlug: initialCategorySlug,
     categoryBanner: initialCategoryBanner,
+    categoryDescriptionHtml: initialCategoryDescriptionHtml || "",
+    categoryFaqItems: Array.isArray(initialCategoryFaqItems)
+        ? initialCategoryFaqItems
+        : [],
     viewMode: initialViewMode,
     currentPage: initialPage,
     queryParams: {
@@ -195,6 +203,7 @@ Alpine.data("ProductIndex", () => ({
 
         this.categoryName = category.name;
         this.categoryBanner = category.banner.path;
+
         this.currentPage = 1;
         this.queryParams.query = null;
         this.queryParams.category = category.slug;
@@ -247,6 +256,25 @@ Alpine.data("ProductIndex", () => ({
 
             if (options.updateAttributeFilters) {
                 this.attributeFilters = response.data.attributes;
+            }
+
+            if (
+                response.data.category &&
+                Object.prototype.hasOwnProperty.call(
+                    response.data.category,
+                    "description_html"
+                )
+            ) {
+                this.categoryDescriptionHtml =
+                    response.data.category.description_html || "";
+                this.categoryFaqItems = Array.isArray(
+                    response.data.category.faq_items
+                )
+                    ? response.data.category.faq_items
+                    : [];
+            } else {
+                this.categoryDescriptionHtml = "";
+                this.categoryFaqItems = [];
             }
         } catch (error) {
             notify(error.response.data.message);

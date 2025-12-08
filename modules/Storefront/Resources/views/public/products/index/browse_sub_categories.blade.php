@@ -13,10 +13,11 @@
             @endif
             
             <a
-                href="{{ route('categories.products.index', ['category' => $subCategory->slug]) }}"
+                href="{{ route('products.index', ['category' => $subCategory->slug]) }}"
+                title="{{ $subCategory->name }}"
                 @click.prevent='
                     changeCategory({
-                        name: "{{ $subCategory->name }}",
+                        name: "{{ addslashes($subCategory->name) }}",
                         banner: {{ $subCategory->banner }},
                         slug: "{{ $subCategory->slug }}",
                         meta_title: "{{ addslashes($subCategory->meta_title ?: ($subCategory->name . ' | ' . setting('store_name'))) }}"

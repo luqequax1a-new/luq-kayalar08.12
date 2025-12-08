@@ -29,3 +29,11 @@ Route::get('settings/whatsapp-module', [
         return view('setting::admin.whatsapp_module.index');
     },
 ]);
+
+Route::get('settings/customizations', [
+    'as' => 'admin.settings.customizations',
+    'middleware' => 'can:admin.settings.edit',
+    'uses' => function () {
+        return view('setting::admin.customizations.index');
+    },
+]);

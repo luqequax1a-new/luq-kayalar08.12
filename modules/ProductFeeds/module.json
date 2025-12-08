@@ -1,0 +1,9 @@
+{
+    "name": "ProductFeeds",
+    "alias": "product_feeds",
+    "description": "Product catalog feeds for Google Merchant, Meta/Instagram, TikTok, Trendyol, Pinterest.",
+    "priority": 120,
+    "providers": [
+        "Modules\\ProductFeeds\\Providers\\ModuleServiceProvider"
+    ]
+}

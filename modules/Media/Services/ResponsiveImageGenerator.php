@@ -14,6 +14,36 @@ class ResponsiveImageGenerator
 
     protected array $thumbs = [80];
 
+    protected int $jpegQuality = 88;
+
+    protected int $webpQuality = 85;
+
+    protected int $avifQuality = 85;
+
+    protected bool $enableAvif = true;
+
+
+    public function __construct()
+    {
+        $widths = (array) config('image_optimization.variants.widths', []);
+
+        $thumbWidth = (int) ($widths['thumb'] ?? 80);
+        $gridWidth = (int) ($widths['grid'] ?? 400);
+        $detailWidth = (int) ($widths['detail'] ?? 1000);
+
+        $this->presets = [
+            'grid' => [$gridWidth],
+            'detail' => [$detailWidth],
+        ];
+
+        $this->thumbs = [$thumbWidth];
+
+        $this->jpegQuality = (int) config('image_optimization.variants.jpeg_quality', 88);
+        $this->webpQuality = (int) config('image_optimization.variants.webp_quality', 85);
+        $this->avifQuality = (int) config('image_optimization.variants.avif_quality', 85);
+        $this->enableAvif = (bool) config('image_optimization.variants.enable_avif', true);
+    }
+
     public function generateVariants(MediaFile $file): void
     {
         if (!$file->isImage()) return;
@@ -49,14 +79,18 @@ class ResponsiveImageGenerator
             foreach ($sizes as $w) {
                 $this->writeVariant($disk, $raw, $img, $ext, $w, null);
                 $this->writeVariant($disk, $raw, $img, $ext, $w, 'webp');
-                $this->writeVariant($disk, $raw, $img, $ext, $w, 'avif');
+                if ($this->enableAvif) {
+                    $this->writeVariant($disk, $raw, $img, $ext, $w, 'avif');
+                }
             }
         }
 
         foreach ($this->thumbs as $tw) {
             $this->writeVariant($disk, $raw, $img, $ext, $tw, null);
             $this->writeVariant($disk, $raw, $img, $ext, $tw, 'webp');
-            $this->writeVariant($disk, $raw, $img, $ext, $tw, 'avif');
+            if ($this->enableAvif) {
+                $this->writeVariant($disk, $raw, $img, $ext, $tw, 'avif');
+            }
         }
 
         imagedestroy($img);
@@ -75,31 +109,31 @@ class ResponsiveImageGenerator
         $fmt = strtolower($format ?? $originalExt);
 
         if (in_array($fmt, ['jpg', 'jpeg'])) {
-            $ok = imagejpeg($scaled, null, 88);
+            $ok = imagejpeg($scaled, null, max(0, min(100, $this->jpegQuality)));
             $data = ob_get_clean();
         } elseif ($fmt === 'png') {
             $ok = imagepng($scaled, null, 6);
             $data = ob_get_clean();
         } elseif ($fmt === 'webp') {
             if (function_exists('imagewebp')) {
-                $ok = imagewebp($scaled, null, 85);
+                $ok = imagewebp($scaled, null, max(0, min(100, $this->webpQuality)));
                 $data = ob_get_clean();
             } else {
-                $data = $this->encodeWithImagick($img, $width, 'webp', 85);
+                $data = $this->encodeWithImagick($img, $width, 'webp', $this->webpQuality);
                 $ok = is_string($data) && strlen($data) > 0;
                 ob_end_clean();
             }
         } elseif ($fmt === 'avif') {
             if (function_exists('imageavif')) {
-                $ok = imageavif($scaled, null, 85);
+                $ok = imageavif($scaled, null, max(0, min(100, $this->avifQuality)));
                 $data = ob_get_clean();
             } else {
-                $data = $this->encodeWithImagick($img, $width, 'avif', 85);
+                $data = $this->encodeWithImagick($img, $width, 'avif', $this->avifQuality);
                 $ok = is_string($data) && strlen($data) > 0;
                 ob_end_clean();
             }
         } else {
-            $ok = imagejpeg($scaled, null, 88);
+            $ok = imagejpeg($scaled, null, max(0, min(100, $this->jpegQuality)));
             $data = ob_get_clean();
         }
 

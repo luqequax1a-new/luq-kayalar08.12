@@ -43,6 +43,7 @@ class RolesTableSeeder extends Seeder
             'admin.products.create' => true,
             'admin.products.edit' => true,
             'admin.products.destroy' => true,
+            'admin.bulk_product_edits.manage' => true,
             # brands
             'admin.brands.index' => true,
             'admin.brands.create' => true,
@@ -83,6 +84,11 @@ class RolesTableSeeder extends Seeder
             'admin.categories.create' => true,
             'admin.categories.edit' => true,
             'admin.categories.destroy' => true,
+            # dynamic categories
+            'admin.dynamic_categories.index' => true,
+            'admin.dynamic_categories.create' => true,
+            'admin.dynamic_categories.edit' => true,
+            'admin.dynamic_categories.destroy' => true,
             # tags
             'admin.tags.index' => true,
             'admin.tags.create' => true,

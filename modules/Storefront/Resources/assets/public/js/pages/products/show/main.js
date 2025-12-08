@@ -455,10 +455,10 @@ Alpine.data(
                 seen.add(path);
 
                 galleryPreviewSlides.unshift(
-                    this.galleryPreviewSlide(path)
+                    this.galleryPreviewSlide(m)
                 );
                 galleryThumbnailSlides.unshift(
-                    this.galleryThumbnailSlide(path)
+                    this.galleryThumbnailSlide(m)
                 );
             });
 
@@ -519,13 +519,17 @@ Alpine.data(
         addGalleryEmptySlide() {
             const filePath = `${FleetCart.baseUrl}/build/assets/image-placeholder.png`;
 
+            const placeholderFile = {
+                path: filePath,
+            };
+
             galleryPreviewSlider.addSlide(
                 0,
-                this.galleryPreviewEmptySlide(filePath)
+                this.galleryPreviewSlide(placeholderFile, true)
             );
             galleryPreviewSlider.thumbs.swiper.addSlide(
                 0,
-                this.galleryThumbnailEmptySlide(filePath)
+                this.galleryThumbnailSlide(placeholderFile, true)
             );
         },
 
@@ -637,15 +641,62 @@ Alpine.data(
             }
         },
 
-        galleryPreviewSlide(filePath) {
+        buildMainImageSources(file) {
+            if (!file) return { avif: null, webp: null, jpeg: `${FleetCart.baseUrl}/build/assets/image-placeholder.png`, zoom: `${FleetCart.baseUrl}/build/assets/image-placeholder.png` };
+
+            const avif = file.detail_avif_url || file.grid_avif_url || null;
+            const webp = file.detail_webp_url || file.grid_webp_url || null;
+            const jpeg =
+                file.detail_jpeg_url ||
+                file.grid_jpeg_url ||
+                file.path ||
+                `${FleetCart.baseUrl}/build/assets/image-placeholder.png`;
+
+            const zoom =
+                file.detail_jpeg_url ||
+                file.detail_webp_url ||
+                jpeg;
+
+            return { avif, webp, jpeg, zoom };
+        },
+
+        buildThumbImageSources(file) {
+            if (!file) return { avif: null, webp: null, jpeg: `${FleetCart.baseUrl}/build/assets/image-placeholder.png` };
+
+            const avif = file.thumb_avif_url || file.grid_avif_url || null;
+            const webp = file.thumb_webp_url || file.grid_webp_url || null;
+            const jpeg =
+                file.thumb_jpeg_url ||
+                file.grid_jpeg_url ||
+                file.path ||
+                `${FleetCart.baseUrl}/build/assets/image-placeholder.png`;
+
+            return { avif, webp, jpeg };
+        },
+
+        galleryPreviewSlide(file, isPlaceholder = false) {
+            const sources = this.buildMainImageSources(file);
+            const imgClass = isPlaceholder ? "image-placeholder" : "";
+
+            const avifSource = sources.avif
+                ? `<source srcset="${sources.avif}" type="image/avif">`
+                : "";
+            const webpSource = sources.webp
+                ? `<source srcset="${sources.webp}" type="image/webp">`
+                : "";
+
             return `
                 <div class="swiper-slide">
                     <div class="gallery-preview-slide">
                         <div class="gallery-preview-item" @click="triggerGalleryPreviewLightbox(event)">
-                            <img src="${filePath}" data-zoom="${filePath}" alt="${this.productName}">
+                            <picture>
+                                ${avifSource}
+                                ${webpSource}
+                                <img src="${sources.jpeg}" data-zoom="${sources.zoom}" alt="${this.productName}" loading="lazy" decoding="async" class="${imgClass}">
+                            </picture>
                         </div>
 
-                        <a href="${filePath}" data-gallery="product-gallery-preview" class="gallery-view-icon glightbox">
+                        <a href="${sources.zoom}" data-gallery="product-gallery-preview" class="gallery-view-icon glightbox">
                             <i class="las la-search-plus"></i>
                         </a>
                     </div>
@@ -653,12 +704,26 @@ Alpine.data(
             `;
         },
 
-        galleryThumbnailSlide(filePath) {
+        galleryThumbnailSlide(file, isPlaceholder = false) {
+            const sources = this.buildThumbImageSources(file);
+            const imgClass = isPlaceholder ? "image-placeholder" : "";
+
+            const avifSource = sources.avif
+                ? `<source srcset="${sources.avif}" type="image/avif">`
+                : "";
+            const webpSource = sources.webp
+                ? `<source srcset="${sources.webp}" type="image/webp">`
+                : "";
+
             return `
                 <div class="swiper-slide">
                     <div class="gallery-thumbnail-slide">
                         <div class="gallery-thumbnail-item">
-                            <img src="${filePath}" alt="${this.productName}">
+                            <picture>
+                                ${avifSource}
+                                ${webpSource}
+                                <img src="${sources.jpeg}" alt="${this.productName}" loading="lazy" decoding="async" class="${imgClass}">
+                            </picture>
                         </div>
                     </div>
                 </div>
@@ -673,6 +738,7 @@ Alpine.data(
                             <video
                                 class="product-main-media product-main-media--video"
                                 controls
+                                controlslist="nofullscreen"
                                 playsinline
                                 preload="metadata"
                                 poster="${posterPath}"
@@ -700,31 +766,13 @@ Alpine.data(
         },
 
         galleryPreviewEmptySlide(filePath) {
-            return `
-                <div class="swiper-slide">
-                    <div class="gallery-preview-slide">
-                        <div class="gallery-preview-item" @click="triggerGalleryPreviewLightbox(event)">
-                            <img src="${filePath}" data-zoom="${filePath}" alt="${this.productName}" class="image-placeholder">
-                        </div>
-
-                        <a href="${filePath}" data-gallery="product-gallery-preview" class="gallery-view-icon glightbox">
-                            <i class="las la-search-plus"></i>
-                        </a>
-                    </div>
-                </div>
-            `;
+            const file = { path: filePath };
+            return this.galleryPreviewSlide(file, true);
         },
 
         galleryThumbnailEmptySlide(filePath) {
-            return `
-                <div class="swiper-slide">
-                    <div class="gallery-thumbnail-slide">
-                        <div class="gallery-thumbnail-item">
-                            <img src="${filePath}" alt="${this.productName}" class="image-placeholder">
-                        </div>
-                    </div>
-                </div>
-            `;
+            const file = { path: filePath };
+            return this.galleryThumbnailSlide(file, true);
         },
 
         productPriceWithOptionsPrice() {

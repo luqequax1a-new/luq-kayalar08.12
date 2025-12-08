@@ -2,7 +2,7 @@
     width: calc(100% - 293px);
 
     .categories-banner {
-        display: block;
+        display: none !important;
         margin-bottom: 40px;
 
         &:before,
