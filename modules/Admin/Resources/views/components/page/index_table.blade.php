@@ -1,14 +1,14 @@
 @section('content')
     <div class="row">
         <div class="btn-group pull-right">
-            @if (isset($buttons, $name))
+            @if (isset($buttons, $name) && is_array($buttons))
                 @foreach ($buttons as $view)
                     <a href="{{ route("admin.{$resource}.{$view}") }}" class="btn btn-primary btn-actions btn-{{ $view }}">
                         {{ trans("admin::resource.{$view}", ['resource' => $name]) }}
                     </a>
                 @endforeach
             @else
-                {{ $buttons ?? '' }}
+                {!! $buttons ?? '' !!}
             @endif
         </div>
     </div>
@@ -34,7 +34,7 @@
 
 @isset($name)
     @push('shortcuts')
-        @if (isset($buttons) && in_array('create', $buttons))
+        @if (isset($buttons) && is_array($buttons) && in_array('create', $buttons))
             <dl class="dl-horizontal">
                 <dt><code>c</code></dt>
                 <dd>{{ trans('admin::resource.create', ['resource' => $name]) }}</dd>
@@ -49,7 +49,7 @@
 
     @push('scripts')
         <script type="module">
-            @if (isset($buttons) && in_array('create', $buttons))
+            @if (isset($buttons) && is_array($buttons) && in_array('create', $buttons))
                 keypressAction([
                     { key: 'c', route: '{{ route("admin.{$resource}.create") }}'}
                 ]);

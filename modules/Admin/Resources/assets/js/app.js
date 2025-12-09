@@ -15,6 +15,7 @@ import {
     success,
     warning,
     error,
+    generateSlug,
 } from "./functions";
 
 const regex =
@@ -34,3 +35,4 @@ window.info = info;
 window.success = success;
 window.warning = warning;
 window.error = error;
+window.generateSlug = generateSlug;

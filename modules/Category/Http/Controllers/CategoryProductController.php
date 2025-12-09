@@ -15,6 +15,13 @@ class CategoryProductController
 {
     use ProductSearch;
 
+    private DynamicCategoryProductService $dynamicCategoryProductService;
+
+    public function __construct(DynamicCategoryProductService $dynamicCategoryProductService)
+    {
+        $this->dynamicCategoryProductService = $dynamicCategoryProductService;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -32,7 +39,7 @@ class CategoryProductController
         $dynamicCategory = DynamicCategory::where('slug', $slug)->first();
 
         if ($dynamicCategory) {
-            $service = new DynamicCategoryProductService();
+            $service = $this->dynamicCategoryProductService;
 
             if (request()->expectsJson()) {
                 // Build base query using tag rules only (no price/brand/date filters)
@@ -127,7 +134,18 @@ class CategoryProductController
                 ]);
             }
 
+            // Frontend product index view expects a $category object to read
+            // description / FAQ data from. We provide a lightweight object
+            // with the same shape for dynamic categories so that the rich
+            // text description can be rendered below the product list.
+
+            $categoryLike = (object) [
+                'description' => $dynamicCategory->description,
+                'faq_items' => [],
+            ];
+
             return view('storefront::public.products.index', [
+                'category' => $categoryLike,
                 'categoryName' => $dynamicCategory->name,
                 'categoryBanner' => optional($dynamicCategory->image)->path,
                 'categoryMetaTitle' => $dynamicCategory->meta_title ?: $dynamicCategory->name,

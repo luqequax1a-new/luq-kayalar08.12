@@ -5,6 +5,11 @@ namespace Modules\DynamicCategory\Providers;
 use Illuminate\Support\ServiceProvider;
 use Modules\Admin\Ui\Facades\TabManager;
 use Modules\DynamicCategory\Admin\DynamicCategoryTabs;
+use Modules\DynamicCategory\Services\DynamicCategoryRuleQueryBuilder;
+use Modules\DynamicCategory\Services\Rules\PriceRuleApplier;
+use Modules\DynamicCategory\Services\Rules\TagRuleApplier;
+use Modules\DynamicCategory\Services\Rules\DiscountedRuleApplier;
+use Modules\DynamicCategory\Services\Rules\CreatedAtRuleApplier;
 
 class DynamicCategoryServiceProvider extends ServiceProvider
 {
@@ -31,5 +36,15 @@ class DynamicCategoryServiceProvider extends ServiceProvider
             __DIR__ . '/../Config/permissions.php',
             'fleetcart.modules.dynamiccategory.permissions'
         );
+
+        $this->app->singleton(DynamicCategoryRuleQueryBuilder::class, function () {
+            return new DynamicCategoryRuleQueryBuilder([
+                new PriceRuleApplier(),
+                new TagRuleApplier(),
+                new \Modules\DynamicCategory\Services\Rules\BrandRuleApplier(),
+                new DiscountedRuleApplier(),
+                new CreatedAtRuleApplier(),
+            ]);
+        });
     }
 }

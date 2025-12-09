@@ -103,6 +103,14 @@
     }
 }
 
+.category-description {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #4b5563;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
 .fc-faq-section {
     border-top: 1px solid var(--color-border, #e5e7eb);
     padding-top: 24px;

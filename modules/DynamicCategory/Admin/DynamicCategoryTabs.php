@@ -12,7 +12,7 @@ class DynamicCategoryTabs extends Tabs
         $this->group('dynamic_category_information', trans('dynamic_category::dynamic_categories.tabs.group.dynamic_category_information'))
             ->active()
             ->add($this->general())
-            ->add($this->tagRules());
+            ->add($this->rules());
     }
 
     private function general(): Tab
@@ -31,6 +31,15 @@ class DynamicCategoryTabs extends Tabs
             $tab->weight(10);
             $tab->fields(['include_tags', 'exclude_tags']);
             $tab->view('dynamic_category::admin.dynamic_categories.tabs.tag_rules');
+        });
+    }
+
+    private function rules(): Tab
+    {
+        return tap(new Tab('rules', trans('dynamic_category::dynamic_categories.tabs.rules')), function (Tab $tab) {
+            $tab->weight(15);
+            $tab->fields(['rules']);
+            $tab->view('dynamic_category::admin.dynamic_categories.tabs.rules');
         });
     }
 

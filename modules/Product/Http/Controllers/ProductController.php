@@ -66,7 +66,7 @@ class ProductController extends Controller
                 $dynamicCategory = DynamicCategory::where('slug', $categorySlug)->first();
 
                 if ($dynamicCategory) {
-                    $service = new DynamicCategoryProductService();
+                    $service = app(DynamicCategoryProductService::class);
                     $query = $service->buildQuery($dynamicCategory);
 
                     $perPage = (int) request('perPage', 30);
@@ -155,8 +155,10 @@ class ProductController extends Controller
                     return response()->json([
                         'products' => $paginator,
                         'attributes' => collect(),
+                        // Frontend expects a category object with description_html
+                        // to render rich description & FAQ below the product list.
                         'category' => [
-                            'description_html' => '',
+                            'description_html' => $dynamicCategory->description ?? '',
                             'faq_items' => [],
                         ],
                     ]);

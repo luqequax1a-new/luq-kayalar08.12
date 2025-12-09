@@ -10,6 +10,7 @@ return [
         'general' => 'Basic Info',
         'tag_rules' => 'Tag Rules',
         'preview' => 'Product Preview',
+        'rules' => 'Dynamic Rules',
     ],
     'table' => [
         'name' => 'Name',
@@ -17,6 +18,7 @@ return [
         'status' => 'Status',
         'include_tags_count' => 'Include Tags',
         'exclude_tags_count' => 'Exclude Tags',
+        'products_count' => 'Product Count',
     ],
     'form' => [
         'enable_dynamic_category' => 'Enable this dynamic category',
@@ -28,4 +30,11 @@ return [
     'serp_preview_title' => 'Google SERP Preview',
     'preview_help' => 'The first 20 matching products for this dynamic category (read only).',
     'preview_empty' => 'No products match the current tag rules.',
+    'rules_label' => 'Dynamic Rules',
+    'rules_help' => 'Define rules to automatically include products in this category based on different fields and conditions.',
+    'rule_group' => 'Group',
+    'rule_field' => 'Field',
+    'rule_operator' => 'Operator',
+    'rule_value' => 'Value',
+    'rule_boolean' => 'Boolean',
 ];

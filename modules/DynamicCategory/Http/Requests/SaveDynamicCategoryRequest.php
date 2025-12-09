@@ -21,8 +21,15 @@ class SaveDynamicCategoryRequest extends Request
                 Rule::unique('dynamic_categories', 'slug')->ignore($this->id),
             ],
             'is_active' => ['required', 'boolean'],
-            'include_tags' => ['required', 'array', 'min:1'],
+            'rules_mode' => ['nullable', 'in:all,any'],
+            'include_tags' => ['nullable', 'array'],
             'include_tags.*' => ['integer', 'exists:tags,id'],
+            'rules' => ['nullable', 'array'],
+            'rules.*.field' => ['nullable', 'string', 'max:255'],
+            'rules.*.operator' => ['nullable', 'string', 'max:50'],
+            'rules.*.value' => ['nullable'],
+            'rules.*.group_no' => ['nullable', 'integer', 'min:1'],
+            'rules.*.boolean' => ['nullable', 'in:AND,OR,and,or'],
         ];
     }
 }

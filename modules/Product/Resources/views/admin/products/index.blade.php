@@ -7,7 +7,30 @@
 @endcomponent
 
 @component('admin::components.page.index_table')
-    @slot('buttons', ['create'])
+    @slot('buttons')
+        <a href="{{ route('admin.products.create') }}" class="btn btn-primary btn-actions btn-create">
+            {{ trans('admin::resource.create', ['resource' => trans('product::products.product')]) }}
+        </a>
+
+        <div class="btn-group">
+            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                CSV İşlemleri <span class="caret"></span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-right">
+                <li>
+                    <a href="#" id="btn-export-products-csv">Ürünleri CSV Dışa Aktar</a>
+                </li>
+                <li role="separator" class="divider"></li>
+                <li>
+                    <a href="{{ route('admin.products.csv.simple_import.form') }}">CSV ile Ürün Yükle / Güncelle</a>
+                </li>
+                <li role="separator" class="divider"></li>
+                <li>
+                    <a href="#" id="btn-export-variants-csv">Varyantları CSV Dışa Aktar</a>
+                </li>
+            </ul>
+        </div>
+    @endslot
     @slot('resource', 'products')
     @slot('name', trans('product::products.product'))
     @slot('filters_form', '#product-filters')
@@ -568,6 +591,589 @@
                 closeDrawer();
             });
         });
+
+        // CSV Export (filter aware)
+        $('#btn-export-products-csv').on('click', function (e) {
+            e.preventDefault();
+
+            const params = new URLSearchParams();
+
+            const brandId = $('#filter-brand').val();
+            if (brandId) params.append('brand_id', brandId);
+
+            const categoryId = $('#filter-category').val();
+            if (categoryId) params.append('category_id', categoryId);
+
+            const searchInput = $("#products-table .dataTables_filter input[type='search']");
+            const searchVal = searchInput.length ? searchInput.val() : '';
+            if (searchVal) params.append('search', searchVal);
+
+            const url = `${FleetCart.baseUrl}/admin/products/csv/export` + (params.toString() ? `?${params.toString()}` : '');
+            window.location.href = url;
+        });
+
+        // Variant CSV Export (filter aware, same filters as products)
+        $('#btn-export-variants-csv').on('click', function (e) {
+            e.preventDefault();
+
+            const params = new URLSearchParams();
+
+            const brandId = $('#filter-brand').val();
+            if (brandId) params.append('brand_id', brandId);
+
+            const categoryId = $('#filter-category').val();
+            if (categoryId) params.append('category_id', categoryId);
+
+            const searchInput = $("#products-table .dataTables_filter input[type='search']");
+            const searchVal = searchInput.length ? searchInput.val() : '';
+            if (searchVal) params.append('search', searchVal);
+
+            const url = `${FleetCart.baseUrl}/admin/products/variants/csv/export` + (params.toString() ? `?${params.toString()}` : '');
+            window.location.href = url;
+        });
+
+        // CSV Import / Bulk Update Wizard
+        let csvTempId = null;
+        let csvMode = 'create';
+        let csvIdentifier = 'id';
+        let csvMapping = {};
+
+        const $csvModal = $('#csv-import-modal');
+        const $csvStep1 = $('#csv-step-1');
+        const $csvStep2 = $('#csv-step-2');
+        const $csvStep3 = $('#csv-step-3');
+
+        function showCsvStep(step) {
+            $csvStep1.toggleClass('hidden', step !== 1);
+            $csvStep2.toggleClass('hidden', step !== 2);
+            $csvStep3.toggleClass('hidden', step !== 3);
+        }
+
+        window.csvOpenImportModal = function () {
+            csvTempId = null;
+            csvMapping = {};
+            $('#csv-file-input').val('');
+            $('#csv-mode-select').val('create');
+            $('#csv-identifier-select').val('id');
+            $('#csv-delimiter-select').val('comma');
+            $('#csv-mapping-table tbody').empty();
+            $('#csv-preview-summary').empty();
+            $('#csv-preview-rows').empty();
+            showCsvStep(1);
+            $csvModal.modal('show');
+        };
+
+        window.csvStep1Next = function () {
+            const fileInput = document.getElementById('csv-file-input');
+            if (!fileInput.files.length) {
+                alert('Lütfen bir CSV dosyası seçin.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            csvMode = $('#csv-mode-select').val() || 'create';
+            const delimiter = $('#csv-delimiter-select').val() || 'comma';
+            formData.append('mode', csvMode);
+            formData.append('delimiter', delimiter);
+
+            axios.post(`${FleetCart.baseUrl}/admin/products/csv/import/upload`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            }).then(({ data }) => {
+                if (!data.success) return;
+                csvTempId = data.temp_id;
+                const headers = data.headers || [];
+                const $tbody = $('#csv-mapping-table tbody');
+                $tbody.empty();
+
+                const availableFields = [
+                    'id','sku','slug','name','description','short_description',
+                    'price','special_price','special_price_type','special_price_start','special_price_end',
+                    'selling_price','manage_stock','qty','in_stock','is_virtual','is_active',
+                    'brand_id','tax_class_id','sale_unit_id','primary_category_id','google_product_category_id','google_product_category_path',
+                    'list_variants_separately','category_ids','tag_ids','images',
+                ];
+
+                headers.forEach((h) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${_.escape(h)}</td>
+                        <td>
+                            <select class="form-control input-sm csv-field-select" data-csv-column="${_.escape(h)}">
+                                <option value="">-- Alan seçin --</option>
+                                ${availableFields.map(f => `<option value="${f}">${f}</option>`).join('')}
+                            </select>
+                        </td>
+                    `;
+                    $tbody.append(row);
+                });
+
+                showCsvStep(2);
+            }).catch((error) => {
+                if (error.response && error.response.status === 422 && error.response.data && error.response.data.errors) {
+                    let messages = [];
+                    Object.values(error.response.data.errors).forEach((arr) => {
+                        if (Array.isArray(arr)) {
+                            messages = messages.concat(arr);
+                        }
+                    });
+                    alert('Dosya yükleme doğrulama hatası:\n' + messages.join('\n'));
+                } else {
+                    alert('Dosya yükleme sırasında bir hata oluştu.');
+                }
+            });
+        };
+
+        window.csvStep2Prev = function () {
+            showCsvStep(1);
+        };
+
+        $(document).on('click', '#csv-auto-map', function (e) {
+            e.preventDefault();
+            function normalizeKey(str) {
+                return String(str || '')
+                    .toLowerCase()
+                    .replace(/[\s_\-]+/g, '')
+                    .replace(/[ıİ]/g, 'i')
+                    .replace(/[şŞ]/g, 's')
+                    .replace(/[ğĞ]/g, 'g')
+                    .replace(/[üÜ]/g, 'u')
+                    .replace(/[öÖ]/g, 'o')
+                    .replace(/[çÇ]/g, 'c');
+            }
+
+            function fieldAliases(field) {
+                const base = normalizeKey(field);
+                const aliases = [base];
+
+                if (base === 'id' || base === 'productid' || base === 'urunid') {
+                    aliases.push('id', 'productid');
+                }
+                if (base === 'sku' || base === 'productsku' || base === 'urunkodu') {
+                    aliases.push('sku', 'productsku');
+                }
+                if (base === 'name' || base === 'productname' || base === 'urunadi') {
+                    aliases.push('name', 'productname');
+                }
+                if (base === 'price' || base === 'fiyat' || base === 'sellingprice') {
+                    aliases.push('price', 'sellingprice');
+                }
+                if (base === 'qty' || base === 'stok' || base === 'quantity' || base === 'stock') {
+                    aliases.push('qty');
+                }
+                if (base === 'attributes' || base === 'ozellikler' || base === 'varyantlar') {
+                    aliases.push('attributes');
+                }
+
+                return aliases;
+            }
+
+            $('#csv-mapping-table tbody .csv-field-select').each(function () {
+                const $sel = $(this);
+                const colRaw = String($sel.data('csv-column') || '');
+                const colNorm = normalizeKey(colRaw);
+                const options = $sel.get(0).options;
+
+                let matched = false;
+
+                for (let i = 0; i < options.length && !matched; i++) {
+                    const opt = options[i];
+                    if (!opt.value) continue;
+                    const optNorm = normalizeKey(opt.value);
+                    const aliases = fieldAliases(opt.value);
+                    if (optNorm === colNorm || aliases.includes(colNorm)) {
+                        $sel.val(opt.value);
+                        matched = true;
+                    }
+                }
+            });
+        });
+
+        window.csvStep2Next = function () {
+            console.log('[CSV] Step 2 Next clicked');
+            if (!csvTempId) {
+                alert('Geçici dosya bulunamadı. Lütfen baştan deneyin.');
+                return;
+            }
+
+            csvMapping = {};
+            $('#csv-mapping-table tbody .csv-field-select').each(function () {
+                const field = $(this).val();
+                const col = $(this).data('csv-column');
+                if (field) {
+                    csvMapping[col] = field;
+                }
+            });
+
+            if (!Object.keys(csvMapping).length) {
+                console.log('[CSV] No mapping set, blocking preview');
+                alert('Devam etmeden önce en az bir alan eşlemeniz gerekiyor.');
+                return;
+            }
+
+            csvMode = $('#csv-mode-select').val() || 'create';
+            csvIdentifier = $('#csv-identifier-select').val() || 'id';
+
+            console.log('[CSV] Sending preview', {
+                temp_id: csvTempId,
+                mode: csvMode,
+                identifier: csvIdentifier,
+                mapping: csvMapping,
+            });
+
+            alert('[CSV DEBUG] Önizleme isteği gönderiliyor.\n' +
+                'temp_id: ' + csvTempId + '\n' +
+                'mode: ' + csvMode + '\n' +
+                'identifier: ' + csvIdentifier + '\n' +
+                'mapping keys: ' + Object.keys(csvMapping).join(', '));
+
+            axios.post(`${FleetCart.baseUrl}/admin/products/csv/import/preview`, {
+                temp_id: csvTempId,
+                mode: csvMode,
+                mapping: csvMapping,
+                identifier: csvIdentifier,
+            }).then(({ data }) => {
+                if (!data.success) return;
+                const preview = data.preview || {};
+                const total = preview.total || 0;
+                const valid = preview.valid || 0;
+                const invalid = preview.invalid || 0;
+                $('#csv-preview-summary').text(`Toplam ${total} satır, ${valid} geçerli, ${invalid} hatalı.`);
+
+                const $tbody = $('#csv-preview-rows');
+                $tbody.empty();
+                (preview.rows || []).forEach((r) => {
+                    const errors = (r.errors || []).join(' ');
+                    const actionLabel = r.action === 'create' ? 'Yeni ürün oluşturulacak' : (r.action === 'update' ? 'Ürün güncellenecek' : 'Atlanacak');
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${r.index}</td>
+                        <td>${_.escape(actionLabel)}</td>
+                        <td>${_.escape(errors)}</td>
+                    `;
+                    $tbody.append(tr);
+                });
+
+                showCsvStep(3);
+            }).catch((error) => {
+                if (error.response && error.response.status === 422 && error.response.data && error.response.data.errors) {
+                    let messages = [];
+                    Object.values(error.response.data.errors).forEach((arr) => {
+                        if (Array.isArray(arr)) {
+                            messages = messages.concat(arr);
+                        }
+                    });
+                    alert('Önizleme doğrulama hatası:\n' + messages.join('\n'));
+                } else {
+                    alert('Önizleme sırasında bir hata oluştu.');
+                }
+            });
+        };
+
+        window.csvStep3Prev = function () {
+            showCsvStep(2);
+        };
+
+        window.csvProcessStart = function () {
+            if (!csvTempId) {
+                alert('Geçici dosya bulunamadı.');
+                return;
+            }
+
+            axios.post(`${FleetCart.baseUrl}/admin/products/csv/import/process`, {
+                temp_id: csvTempId,
+                mode: csvMode,
+                mapping: csvMapping,
+                identifier: csvIdentifier,
+            }).then(() => {
+                alert('İşlem kuyruğa alındı. Kuyruktaki işler tamamlandığında sonuçlar sistemde görüntülenecektir.');
+                $csvModal.modal('hide');
+            }).catch((error) => {
+                if (error.response && error.response.status === 422 && error.response.data && error.response.data.errors) {
+                    let messages = [];
+                    Object.values(error.response.data.errors).forEach((arr) => {
+                        if (Array.isArray(arr)) {
+                            messages = messages.concat(arr);
+                        }
+                    });
+                    alert('İşlem başlatılamadı (doğrulama hatası):\n' + messages.join('\n'));
+                } else {
+                    alert('İşlem başlatılırken bir hata oluştu.');
+                }
+            });
+        };
+
+        // Variant CSV Import / Bulk Update Wizard
+        let variantCsvTempId = null;
+        let variantCsvMode = 'create';
+        let variantCsvIdentifier = 'id';
+        let variantCsvMapping = {};
+
+        const $variantModal = $('#variant-csv-import-modal');
+        const $variantStep1 = $('#variant-csv-step-1');
+        const $variantStep2 = $('#variant-csv-step-2');
+        const $variantStep3 = $('#variant-csv-step-3');
+
+        function showVariantStep(step) {
+            $variantStep1.toggleClass('hidden', step !== 1);
+            $variantStep2.toggleClass('hidden', step !== 2);
+            $variantStep3.toggleClass('hidden', step !== 3);
+        }
+
+        $(document).on('click', '#btn-open-variant-csv-import-modal', function (e) {
+            e.preventDefault();
+            variantCsvTempId = null;
+            variantCsvMapping = {};
+            $('#variant-csv-file-input').val('');
+            $('#variant-csv-mode-create').prop('checked', true);
+            $('#variant-csv-mode-update').prop('checked', false);
+            $('#variant-csv-identifier-id').prop('checked', true);
+            $('#variant-csv-identifier-sku').prop('checked', false);
+            $('#variant-csv-delimiter-comma').prop('checked', true);
+            $('#variant-csv-delimiter-semicolon').prop('checked', false);
+            $('#variant-csv-mapping-table tbody').empty();
+            $('#variant-csv-preview-summary').empty();
+            $('#variant-csv-preview-rows').empty();
+            showVariantStep(1);
+            $variantModal.modal('show');
+        });
+
+        $(document).on('click', '#variant-csv-step-1-next', function (e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('variant-csv-file-input');
+            if (!fileInput.files.length) {
+                alert('Lütfen bir CSV dosyası seçin.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            variantCsvMode = $('#variant-csv-mode-update').is(':checked') ? 'update' : 'create';
+            const delimiter = $('#variant-csv-delimiter-semicolon').is(':checked') ? 'semicolon' : 'comma';
+            formData.append('mode', variantCsvMode);
+            formData.append('delimiter', delimiter);
+
+            axios.post(`${FleetCart.baseUrl}/admin/products/variants/csv/import/upload`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            }).then(({ data }) => {
+                if (!data.success) return;
+                variantCsvTempId = data.temp_id;
+                const headers = data.headers || [];
+                const $tbody = $('#variant-csv-mapping-table tbody');
+                $tbody.empty();
+
+                const availableVariantFields = [
+                    'id', 'product_id', 'product_sku', 'sku', 'uid', 'uids', 'name',
+                    'price', 'special_price', 'special_price_type', 'special_price_start', 'special_price_end',
+                    'selling_price', 'manage_stock', 'qty', 'in_stock', 'is_default', 'is_active', 'position',
+                    'attributes',
+                ];
+
+                headers.forEach((h) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${_.escape(h)}</td>
+                        <td>
+                            <select class="form-control input-sm variant-csv-field-select" data-csv-column="${_.escape(h)}">
+                                <option value="">-- Alan seçin --</option>
+                                ${availableVariantFields.map(f => `<option value="${f}">${f}</option>`).join('')}
+                            </select>
+                        </td>
+                    `;
+                    $tbody.append(row);
+                });
+
+                showVariantStep(2);
+            }).catch((error) => {
+                if (error.response && error.response.status === 422 && error.response.data && error.response.data.errors) {
+                    let messages = [];
+                    Object.values(error.response.data.errors).forEach((arr) => {
+                        if (Array.isArray(arr)) {
+                            messages = messages.concat(arr);
+                        }
+                    });
+                    alert('Varyant dosya yükleme doğrulama hatası:\n' + messages.join('\n'));
+                } else {
+                    alert('Dosya yükleme sırasında bir hata oluştu.');
+                }
+            });
+        });
+
+        $(document).on('click', '#variant-csv-step-2-prev', function (e) {
+            e.preventDefault();
+            showVariantStep(1);
+        });
+
+        $(document).on('click', '#variant-csv-auto-map', function (e) {
+            e.preventDefault();
+            function normalizeVariantKey(str) {
+                return String(str || '')
+                    .toLowerCase()
+                    .replace(/[\s_\-]+/g, '')
+                    .replace(/[ıİ]/g, 'i')
+                    .replace(/[şŞ]/g, 's')
+                    .replace(/[ğĞ]/g, 'g')
+                    .replace(/[üÜ]/g, 'u')
+                    .replace(/[öÖ]/g, 'o')
+                    .replace(/[çÇ]/g, 'c');
+            }
+
+            function variantFieldAliases(field) {
+                const base = normalizeVariantKey(field);
+                const aliases = [base];
+
+                if (base === 'id' || base === 'variantid' || base === 'varyantid') {
+                    aliases.push('id', 'variantid');
+                }
+                if (base === 'productid' || base === 'urunid') {
+                    aliases.push('productid');
+                }
+                if (base === 'productsku' || base === 'urunkodu') {
+                    aliases.push('productsku');
+                }
+                if (base === 'sku' || base === 'variantsku' || base === 'varyantsku' || base === 'varyantkodu') {
+                    aliases.push('sku', 'variantsku');
+                }
+                if (base === 'name' || base === 'variantname' || base === 'varyantadi') {
+                    aliases.push('name', 'variantname');
+                }
+                if (base === 'price' || base === 'fiyat' || base === 'sellingprice') {
+                    aliases.push('price', 'sellingprice');
+                }
+                if (base === 'qty' || base === 'stok' || base === 'quantity' || base === 'stock') {
+                    aliases.push('qty');
+                }
+                if (base === 'attributes' || base === 'ozellikler' || base === 'varyantlar') {
+                    aliases.push('attributes');
+                }
+
+                return aliases;
+            }
+
+            $('#variant-csv-mapping-table tbody .variant-csv-field-select').each(function () {
+                const $sel = $(this);
+                const colRaw = String($sel.data('csv-column') || '');
+                const colNorm = normalizeVariantKey(colRaw);
+                const options = $sel.get(0).options;
+
+                let matched = false;
+
+                for (let i = 0; i < options.length && !matched; i++) {
+                    const opt = options[i];
+                    if (!opt.value) continue;
+                    const optNorm = normalizeVariantKey(opt.value);
+                    const aliases = variantFieldAliases(opt.value);
+                    if (optNorm === colNorm || aliases.includes(colNorm)) {
+                        $sel.val(opt.value);
+                        matched = true;
+                    }
+                }
+            });
+        });
+
+        $(document).on('click', '#variant-csv-step-2-next', function (e) {
+            e.preventDefault();
+            if (!variantCsvTempId) {
+                alert('Geçici dosya bulunamadı. Lütfen baştan deneyin.');
+                return;
+            }
+
+            variantCsvMapping = {};
+            $('#variant-csv-mapping-table tbody .variant-csv-field-select').each(function () {
+                const field = $(this).val();
+                const col = $(this).data('csv-column');
+                if (field) {
+                    variantCsvMapping[col] = field;
+                }
+            });
+
+            if (!Object.keys(variantCsvMapping).length) {
+                alert('Devam etmeden önce en az bir varyant alanını eşlemeniz gerekiyor.');
+                return;
+            }
+
+            variantCsvMode = $('#variant-csv-mode-update').is(':checked') ? 'update' : 'create';
+            variantCsvIdentifier = $('#variant-csv-identifier-sku').is(':checked') ? 'sku' : 'id';
+
+            axios.post(`${FleetCart.baseUrl}/admin/products/variants/csv/import/preview`, {
+                temp_id: variantCsvTempId,
+                mode: variantCsvMode,
+                mapping: variantCsvMapping,
+                identifier: variantCsvIdentifier,
+            }).then(({ data }) => {
+                if (!data.success) return;
+                const preview = data.preview || {};
+                const total = preview.total || 0;
+                const valid = preview.valid || 0;
+                const invalid = preview.invalid || 0;
+                $('#variant-csv-preview-summary').text(`Toplam ${total} satır, ${valid} geçerli, ${invalid} hatalı.`);
+
+                const $tbody = $('#variant-csv-preview-rows');
+                $tbody.empty();
+                (preview.rows || []).forEach((r) => {
+                    const errors = (r.errors || []).join(' ');
+                    let actionLabel = 'Atlanacak';
+                    if (r.action === 'create') actionLabel = 'Yeni varyant oluşturulacak';
+                    else if (r.action === 'update') actionLabel = 'Varyant güncellenecek';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${r.index}</td>
+                        <td>${_.escape(actionLabel)}</td>
+                        <td>${_.escape(errors)}</td>
+                    `;
+                    $tbody.append(tr);
+                });
+
+                showVariantStep(3);
+            }).catch((error) => {
+                if (error.response && error.response.status === 422 && error.response.data && error.response.data.errors) {
+                    let messages = [];
+                    Object.values(error.response.data.errors).forEach((arr) => {
+                        if (Array.isArray(arr)) {
+                            messages = messages.concat(arr);
+                        }
+                    });
+                    alert('Varyant önizleme doğrulama hatası:\n' + messages.join('\n'));
+                } else {
+                    alert('Önizleme sırasında bir hata oluştu.');
+                }
+            });
+        });
+
+        $(document).on('click', '#variant-csv-step-3-prev', function (e) {
+            e.preventDefault();
+            showVariantStep(2);
+        });
+
+        $(document).on('click', '#variant-csv-process-start', function (e) {
+            e.preventDefault();
+            if (!variantCsvTempId) {
+                alert('Geçici dosya bulunamadı.');
+                return;
+            }
+
+            axios.post(`${FleetCart.baseUrl}/admin/products/variants/csv/import/process`, {
+                temp_id: variantCsvTempId,
+                mode: variantCsvMode,
+                mapping: variantCsvMapping,
+                identifier: variantCsvIdentifier,
+            }).then(() => {
+                alert('Varyant işlemi kuyruğa alındı. Kuyruktaki işler tamamlandığında sonuçlar sistemde görüntülenecektir.');
+                $variantModal.modal('hide');
+            }).catch((error) => {
+                if (error.response && error.response.status === 422 && error.response.data && error.response.data.errors) {
+                    let messages = [];
+                    Object.values(error.response.data.errors).forEach((arr) => {
+                        if (Array.isArray(arr)) {
+                            messages = messages.concat(arr);
+                        }
+                    });
+                    alert('Varyant işlemi başlatılamadı (doğrulama hatası):\n' + messages.join('\n'));
+                } else {
+                    alert('Varyant işlemi başlatılırken bir hata oluştu.');
+                }
+            });
+        });
     </script>
     @endpush
 
@@ -647,6 +1253,172 @@
         <div class="drawer-footer">
             <button class="btn btn-default" id="pricing-drawer-close">{{ trans('admin::admin.buttons.cancel') }}</button>
             <button class="btn btn-primary" id="pricing-drawer-save">{{ trans('admin::admin.buttons.save') }}</button>
+        </div>
+    </div>
+
+    {{-- CSV Import Wizard Modal --}}
+    <div class="modal fade" id="csv-import-modal" tabindex="-1" role="dialog" aria-labelledby="csvImportModalLabel">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="csvImportModalLabel">CSV ile Ürün Yükleme / Güncelleme</h4>
+                </div>
+                <div class="modal-body">
+                    <div id="csv-step-1">
+                        <h4>1. Adım: Dosya Yükleme</h4>
+                        <div class="form-group">
+                            <label for="csv-file-input">CSV Dosyası</label>
+                            <input type="file" id="csv-file-input" class="form-control" accept=".csv">
+                        </div>
+                        <div class="form-group">
+                            <label for="csv-mode-select">İşlem tipi</label>
+                            <select id="csv-mode-select" class="form-control">
+                                <option value="create" selected>Yeni ürünler ekle</option>
+                                <option value="update">Mevcut ürünleri güncelle (ID veya SKU ile)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="csv-delimiter-select">Ayraç</label>
+                            <select id="csv-delimiter-select" class="form-control">
+                                <option value="comma" selected>, (virgül)</option>
+                                <option value="semicolon">; (noktalı virgül)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="csv-step-2" class="hidden">
+                        <h4>2. Adım: Kolon Eşleme</h4>
+                        <p>CSV kolonlarını FleetCart ürün alanları ile eşleyin.</p>
+                        <button type="button" class="btn btn-default btn-xs" id="csv-auto-map">Otomatik Eşle</button>
+                        <table class="table table-bordered" id="csv-mapping-table">
+                            <thead>
+                                <tr>
+                                    <th>CSV Kolonu</th>
+                                    <th>Ürün Alanı</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="form-group">
+                            <label for="csv-identifier-select">Güncelleme için eşleştirme alanı</label>
+                            <select id="csv-identifier-select" class="form-control">
+                                <option value="id" selected>ID</option>
+                                <option value="sku">SKU</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="csv-step-3" class="hidden">
+                        <h4>3. Adım: Önizleme ve İşleme</h4>
+                        <p id="csv-preview-summary"></p>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Satır</th>
+                                    <th>İşlem</th>
+                                    <th>Hatalar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="csv-preview-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Kapat</button>
+                    <button type="button" class="btn btn-default" id="csv-step-1-next" onclick="csvStep1Next()">Devam</button>
+                    <button type="button" class="btn btn-default hidden" id="csv-step-2-prev" onclick="csvStep2Prev()">Geri</button>
+                    <button type="button" class="btn btn-primary hidden" id="csv-step-2-next" onclick="csvStep2Next()">Devam</button>
+                    <button type="button" class="btn btn-default hidden" id="csv-step-3-prev" onclick="csvStep3Prev()">Geri</button>
+                    <button type="button" class="btn btn-primary hidden" id="csv-process-start" onclick="csvProcessStart()">İşlemi Başlat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Variant CSV Import Wizard Modal --}}
+    <div class="modal fade" id="variant-csv-import-modal" tabindex="-1" role="dialog" aria-labelledby="variantCsvImportModalLabel">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="variantCsvImportModalLabel">CSV ile Varyant Yükleme / Güncelleme</h4>
+                </div>
+                <div class="modal-body">
+                    <div id="variant-csv-step-1">
+                        <h4>1. Adım: Varyant CSV Dosyası Yükleme</h4>
+                        <div class="form-group">
+                            <label for="variant-csv-file-input">CSV Dosyası</label>
+                            <input type="file" id="variant-csv-file-input" class="form-control" accept=".csv">
+                        </div>
+                        <div class="form-group">
+                            <label>İşlem tipi</label>
+                            <div class="radio">
+                                <label><input type="radio" name="variant-csv-mode" id="variant-csv-mode-create" value="create" checked> Yeni varyantlar ekle</label>
+                            </div>
+                            <div class="radio">
+                                <label><input type="radio" name="variant-csv-mode" id="variant-csv-mode-update" value="update"> Mevcut varyantları güncelle</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Ayraç</label>
+                            <div class="radio">
+                                <label><input type="radio" name="variant-csv-delimiter" id="variant-csv-delimiter-comma" value="comma" checked> , (virgül)</label>
+                            </div>
+                            <div class="radio">
+                                <label><input type="radio" name="variant-csv-delimiter" id="variant-csv-delimiter-semicolon" value="semicolon"> ; (noktalı virgül)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="variant-csv-step-2" class="hidden">
+                        <h4>2. Adım: Varyant Kolon Eşleme</h4>
+                        <p>CSV kolonlarını varyant alanları ile eşleyin.</p>
+                        <button type="button" class="btn btn-default btn-xs" id="variant-csv-auto-map">Otomatik Eşle</button>
+                        <table class="table table-bordered" id="variant-csv-mapping-table">
+                            <thead>
+                                <tr>
+                                    <th>CSV Kolonu</th>
+                                    <th>Varyant Alanı</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <div class="form-group">
+                            <label>Güncelleme için eşleştirme alanı</label>
+                            <div class="radio">
+                                <label><input type="radio" name="variant-csv-identifier" id="variant-csv-identifier-id" value="id" checked> Varyant ID</label>
+                            </div>
+                            <div class="radio">
+                                <label><input type="radio" name="variant-csv-identifier" id="variant-csv-identifier-sku" value="sku"> Varyant SKU</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="variant-csv-step-3" class="hidden">
+                        <h4>3. Adım: Önizleme ve Doğrulama</h4>
+                        <p id="variant-csv-preview-summary"></p>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Satır</th>
+                                    <th>İşlem</th>
+                                    <th>Hatalar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="variant-csv-preview-rows"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Kapat</button>
+                    <button type="button" class="btn btn-default" id="variant-csv-step-1-next">Devam</button>
+                    <button type="button" class="btn btn-default hidden" id="variant-csv-step-2-prev">Geri</button>
+                    <button type="button" class="btn btn-primary hidden" id="variant-csv-step-2-next">Devam</button>
+                    <button type="button" class="btn btn-default hidden" id="variant-csv-step-3-prev">Geri</button>
+                    <button type="button" class="btn btn-primary hidden" id="variant-csv-process-start">İşlemi Başlat</button>
+                </div>
+            </div>
         </div>
     </div>
     @endpush

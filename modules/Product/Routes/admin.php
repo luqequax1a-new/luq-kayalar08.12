@@ -8,6 +8,66 @@ Route::get('products', [
     'middleware' => 'can:admin.products.index',
 ]);
 
+Route::get('products/csv/export', [
+    'as' => 'admin.products.csv.export',
+    'uses' => 'ProductCsvController@export',
+    'middleware' => 'can:admin.products.index',
+]);
+
+Route::post('products/csv/import/upload', [
+    'as' => 'admin.products.csv.import.upload',
+    'uses' => 'ProductCsvController@upload',
+    'middleware' => 'can:admin.products.edit',
+]);
+
+Route::post('products/csv/import/preview', [
+    'as' => 'admin.products.csv.import.preview',
+    'uses' => 'ProductCsvController@preview',
+    'middleware' => 'can:admin.products.edit',
+]);
+
+Route::post('products/csv/import/process', [
+    'as' => 'admin.products.csv.import.process',
+    'uses' => 'ProductCsvController@process',
+    'middleware' => 'can:admin.products.edit',
+]);
+
+Route::get('products/csv/simple-import', [
+    'as' => 'admin.products.csv.simple_import.form',
+    'uses' => 'ProductCsvController@simpleImportForm',
+    'middleware' => 'can:admin.products.edit',
+]);
+
+Route::post('products/csv/simple-import', [
+    'as' => 'admin.products.csv.simple_import',
+    'uses' => 'ProductCsvController@simpleImport',
+    'middleware' => 'can:admin.products.edit',
+]);
+
+Route::get('products/variants/csv/export', [
+    'as' => 'admin.products.variants.csv.export',
+    'uses' => 'ProductCsvController@exportVariants',
+    'middleware' => 'can:admin.products.index',
+]);
+
+Route::post('products/variants/csv/import/upload', [
+    'as' => 'admin.products.variants.csv.import.upload',
+    'uses' => 'ProductCsvController@uploadVariantCsv',
+    'middleware' => 'can:admin.products.edit',
+]);
+
+Route::post('products/variants/csv/import/preview', [
+    'as' => 'admin.products.variants.csv.import.preview',
+    'uses' => 'ProductCsvController@previewVariantCsv',
+    'middleware' => 'can:admin.products.edit',
+]);
+
+Route::post('products/variants/csv/import/process', [
+    'as' => 'admin.products.variants.csv.import.process',
+    'uses' => 'ProductCsvController@processVariantCsv',
+    'middleware' => 'can:admin.products.edit',
+]);
+
 Route::get(
     'products/create',
     [
